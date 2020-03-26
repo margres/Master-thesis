@@ -69,7 +69,7 @@ def check_lim(lim):
 def levin(f,g,lim_inf,lim_sup,n_basis=4):
     '''
     Levin method applied.
-    
+    The collocation points of the basis need to be equidistant.
     '''
     start_time = time.time()
     x = Symbol('x')
@@ -77,8 +77,13 @@ def levin(f,g,lim_inf,lim_sup,n_basis=4):
     lim_sup=check_lim(lim_sup)
     
     #I have to add the check if function has only x as a variable
-
-    x_val=random.sample(range(lim_inf, lim_sup), n_basis) #random points in the region of integration
+    x_val=[]
+    for i in range(n_basis):
+        t=i/n_basis
+        u = 1-t
+        x_val.append(lim_inf*u +  lim_sup*t)
+        
+        
     F,new_eq,variables=collocation_method(g,f,n_basis)
     equations_list=[]
     for i, x_i in enumerate(x_val):
@@ -119,12 +124,16 @@ def LU(A,b,variables):
 '''          
 
 if __name__ == "__main__":
+    
     x = Symbol('x')
     J = besselj(0, x)
     #J_lambda = lambdify(x, J, {'besselj': scipy_besselj})
     f=x*J
     g=(0.5*x**2-x)
-    print(levin(f,g,0,np.inf,n_basis=4))    
+    #for i in range(1,4):
+    #    print((i-1)/(4-1))
+        
+    print(levin(f,g,0,np.inf,n_basis=7))    
 
 
 
