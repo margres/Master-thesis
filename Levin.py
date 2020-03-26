@@ -105,7 +105,7 @@ def levin(f,g,lim_inf,lim_sup,n_basis=4):
     for coef,coef_val in zip(variables, coefficients):
         F_new=F_new.subs({coef:coef_val})
     evaluate=F_new*exp(I*g)
-    solution=N(simplify(evaluate.subs({x:lim_sup})-evaluate.subs({x:lim_inf})))
+    solution=N(simplify(evaluate.subs({x:lim_sup})-evaluate.subs({x:lim_inf}))) #integral evaluated at the boundaries
     #print(solution)
     return solution
 '''
