@@ -15,28 +15,35 @@ from mpmath import fp
 # 
 # as demonstrated by Levin, we can find an approximation to a less oscillatory solution by collocation.
 
-def derivative(var,eq):
-    #x=Symbol(str(var))
-    x_prime=eq.diff
-    return x_prime
-
-
 def diff_eq(F,x,g):
+    '''
+    input:  F(x), the new not rapidly oscillatory function 
+            x, variable in which we need to integrate
+            g, exponent of the exponential    
+            
+    output: differential equation that approximates f(x)
+    '''
     return F.diff(x)+I*g.diff(x)*F
 
 
 def collocation_method(g,f,n_basis):
+     '''
+    input:  f(x) function in the integral
+            g(x), exponent of the exponential 
+            n_basis, amount of basis funcitons
+            
+    output: the function F(x) which has been approximated using the collocation method.          
+    
+    '''   
     
     x = Symbol('x')
-    #g = Function('g')(x)
-    #f = Function('f')(x)
     F = Function('F')(x)
 
-    a_list=[]
-    u=[]
+    a_list=[] #list of the constants in the inear combination of n basis funcitons
+    u=[] #basis functions
 
     for i,c in zip(range(1,n_basis+1),ascii_lowercase):
-        u.append(x**(i-1)) #monomials, collocation
+        u.append(x**(i-1)) #monomials
         c = Symbol(str(c))
         a_list.append(c)
 
@@ -50,6 +57,9 @@ def collocation_method(g,f,n_basis):
     return F,new_eq, a_list
 
 def check_lim(lim):
+    '''
+    chech the boundaries of the integral
+    '''
     if lim == float("inf") or lim == float("-inf"):
         return int(1e6) 
     else:
@@ -57,13 +67,18 @@ def check_lim(lim):
 
 
 def levin(f,g,lim_inf,lim_sup,n_basis=4):
+    '''
+    Levin method applied.
+    
+    '''
     start_time = time.time()
     x = Symbol('x')
     lim_inf=check_lim(lim_inf)
     lim_sup=check_lim(lim_sup)
-    #check if function has only x as a variable
+    
+    #I have to add the check if function has only x as a variable
 
-    x_val=random.sample(range(lim_inf, lim_sup), n_basis)
+    x_val=random.sample(range(lim_inf, lim_sup), n_basis) #random points in the region of integration
     F,new_eq,variables=collocation_method(g,f,n_basis)
     equations_list=[]
     for i, x_i in enumerate(x_val):
