@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.special as ss 
-from sympy import *
+from sympy import Symbol,simplify,expand,diff, Function, solve_linear_system_LU, besselj, I,linear_eq_to_matrix,Matrix,exp,N
 from string import ascii_lowercase
 #import sympy.abc as abc  
 import random
@@ -27,7 +27,7 @@ def diff_eq(F,x,g):
 
 
 def collocation_method(g,f,n_basis):
-     '''
+    '''
     input:  f(x) function in the integral
             g(x), exponent of the exponential 
             n_basis, amount of basis funcitons
@@ -86,14 +86,14 @@ def levin(f,g,lim_inf,lim_sup,n_basis=4):
 
     A, b = linear_eq_to_matrix(equations_list, variables)
     elapsed_time = time.time() - start_time
-    print('Created set of linear equations at: ',time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
+    print('Created set of linear equations after: ',time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
     #coefficients= list(fp.lu_solve(A, b), variables).args[0])
     A_n=Matrix(np.hstack((A,b)))
  
     
     coefficients_LU= solve_linear_system_LU(A_n,variables)
     elapsed_time = time.time() - start_time
-    print('Found the coefficient for the non-rapidly-oscillatory f(x):', time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
+    print('Found the coefficient for the non-rapidly-oscillatory f(x) after:', time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
     
     coefficients=np.zeros(len(variables),dtype=np.complex128)
     for i,value in enumerate(coefficients_LU.values()):
@@ -124,7 +124,7 @@ if __name__ == "__main__":
     #J_lambda = lambdify(x, J, {'besselj': scipy_besselj})
     f=x*J
     g=(0.5*x**2-x)
-    print(levin(f,g,0,np.inf,n_basis=19))    
+    print(levin(f,g,0,np.inf,n_basis=4))    
 
 
 
