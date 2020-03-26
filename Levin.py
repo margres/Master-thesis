@@ -82,6 +82,7 @@ def levin(f,g,lim_inf,lim_sup,n_basis=4):
         t=i/n_basis
         u = 1-t
         x_val.append(lim_inf*u +  lim_sup*t)
+        #print(x_val)
         
         
     F,new_eq,variables=collocation_method(g,f,n_basis)
@@ -133,7 +134,7 @@ if __name__ == "__main__":
     #for i in range(1,4):
     #    print((i-1)/(4-1))
         
-    print(levin(f,g,0,np.inf,n_basis=7))    
+    print(levin(f,g,0,np.inf,n_basis=19))    
 
 
 
