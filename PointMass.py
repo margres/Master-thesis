@@ -133,7 +133,7 @@ if __name__ == "__main__":
     # w
     Mlz *= 4.92549059e-6
     #w = np.loadtxt('w.txt',delimiter='\n')
-    w=[0.1,1]
+    w=[0.1,0.5]
     #w = 8*np.pi*Mlz*f
     
 
