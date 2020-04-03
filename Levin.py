@@ -231,9 +231,9 @@ def levin_general(f,g,const,lim_inf,lim_sup,n_basis=4):
     A_n=Matrix(np.hstack((A_f,rhs)))  
     #print(rhs.shape, A_n.shape)
     #print(A_n)      
-    coefficients_LU= solve_linear_system_LU(A_n,c)
+    coefficients_LU=solve_linear_system_LU(A_n,c)
     
-   coefficients=np.zeros(len(c),dtype=np.complex128)
+    coefficients=np.zeros(len(c),dtype=np.complex128)
     for i,value in enumerate(coefficients_LU.values()):
         coefficients[i]=expand(value)
     
