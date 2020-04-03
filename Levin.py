@@ -172,10 +172,10 @@ def Bes(const,x,n_basis,point,order=1):
             k_=k_i+1
             A[j,k_i]=(order - 1)/x
             Id[j,k_i]=1
-            A[j+5,k_i]=const
-            A[j,k_i+5]=-const
-            A[j+5,k_i+5]=-order/x
-            Id[j+5,k_i+5]=1
+            A[j+n_basis,k_i]=const
+            A[j,k_i+n_basis]=-const
+            A[j+n_basis,k_i+n_basis]=-order/x
+            Id[j+n_basis,k_i+n_basis]=1
         k_i=0
     return A, Id
 
@@ -229,12 +229,15 @@ def levin_general(f,g,const,lim_inf,lim_sup,n_basis=4):
     rhs=rhs.reshape(n2,1)
     #print(rhs.shape, A_n.shape)
     A_n=Matrix(np.hstack((A_f,rhs)))  
-    print(rhs.shape, A_n.shape)
+    #print(rhs.shape, A_n.shape)
     #print(A_n)      
     coefficients_LU= solve_linear_system_LU(A_n,c)
     
+    coefficients=np.zeros(len(c),dtype=np.complex128)
+    for i,value in enumerate(coefficients_LU.values()):
+        coefficients[i]=expand(value)
   
-    return coefficients_LU
+    return coefficients
          
 
 if __name__ == "__main__":
@@ -247,7 +250,7 @@ if __name__ == "__main__":
     w=J*exp(I*g)
 
         
-    print(levin_general(f,g,1,0.5,1,n_basis=7))    
+    print(levin_general(f,g,1,0.5,1,n_basis=4))    
 
 
 
