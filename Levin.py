@@ -233,11 +233,16 @@ def levin_general(f,g,const,lim_inf,lim_sup,n_basis=4):
     #print(A_n)      
     coefficients_LU= solve_linear_system_LU(A_n,c)
     
-    coefficients=np.zeros(len(c),dtype=np.complex128)
+   coefficients=np.zeros(len(c),dtype=np.complex128)
     for i,value in enumerate(coefficients_LU.values()):
         coefficients[i]=expand(value)
+    
+    approx_inf=[u.subs({x:1,k:j}) for j in range(n)]
+    approx_sup=[u.subs({x:2,k:j}) for j in range(n)]
   
-    return coefficients
+    result=np.dot(approx_sup,coefficients[:n])-np.dot(approx_inf,coefficients[:n])
+    
+    return result
          
 
 if __name__ == "__main__":
@@ -250,7 +255,7 @@ if __name__ == "__main__":
     w=J*exp(I*g)
 
         
-    print(levin_general(f,g,1,0.5,1,n_basis=4))    
+    print(levin_general(f,g,1,0.5,1,n_basis=6))    
 
 
 
