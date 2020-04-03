@@ -26,6 +26,9 @@ def differential_eq(F,x,g):
     return F.diff(x)+I*g.diff(x)*F
 
 
+            
+    
+    
 def collocation_method(f,n_basis):
     '''
     input:  f(x) function in the integral
@@ -42,11 +45,15 @@ def collocation_method(f,n_basis):
     a_list=[] #list of the constants in the inear combination of n basis funcitons
     u=[] #basis functions
 
+    '''
     for i,c in zip(range(1,n_basis+1),ascii_lowercase):
         u.append(x**(i-1)) #monomials
         c = Symbol(str(c))
         a_list.append(c)
+    '''
 
+    a_list=coeff_list(n_basis)
+    
     #print(u)
     print(a_list)
     F=np.asarray(a_list).dot(np.asarray(u))
@@ -91,9 +98,9 @@ def check_lim(lim):
         return int(1e6) 
     else:
         return lim
+    
 
-
-def levin(f,g,lim_inf,lim_sup,n_basis=4):
+def levin_basic(f,g,lim_inf,lim_sup,n_basis=4):
     '''
     Levin method applied.
     The collocation points of the basis need to be equidistant.
@@ -104,16 +111,18 @@ def levin(f,g,lim_inf,lim_sup,n_basis=4):
     lim_sup=check_lim(lim_sup)
     
     #I have to add the check if function has only x as a variable
-    x_val=[]
+  
+    x_val=[a+(j-1)*(b-a)/(n-1) for j in range(1,n+1)]
+    '''
     for i in range(n_basis):
         t=i/n_basis
         u = 1-t
         x_val.append(lim_inf*u +  lim_sup*t)
         #print(x_val)
-        
+    '''    
         
     F,variables=collocation_method(g,f,n_basis)
-    new_eq=diff_eq(F,x,g)-f
+    new_eq=differential_eq(F,x,g)-f
     print(new_eq)
     
     equations_list=[]
@@ -145,63 +154,88 @@ def levin(f,g,lim_inf,lim_sup,n_basis=4):
     #print(solution)
     return solution
 
+def uprime_f(uprime,x_v,k_v):
+    uprime_s=uprime.subs({x:x_v,k:k_v})
+    return uprime_s
 
-def levin_new(f,g,lim_inf,lim_sup,n_basis=4):
+def u_f(u,x_v,k_v):
+    u_s=u.subs({x:x_v,k:k_v})
+    return u_s
+
+def Bes(const,x,n_basis,point,order=1):
+
+    A=Matrix(np.zeros([2*n_basis,2*n_basis]))
+    Id=Matrix(np.zeros([2*n_basis,2*n_basis]))
+    for j in range(n_basis):
+        val=point[j]
+        for k_i in range(n_basis):
+            k_=k_i+1
+            A[j,k_i]=(order - 1)/x
+            Id[j,k_i]=1
+            A[j+5,k_i]=const
+            A[j,k_i+5]=-const
+            A[j+5,k_i+5]=-order/x
+            Id[j+5,k_i+5]=1
+        k_i=0
+    return A, Id
+
+def coeff_list(n_basis):   
+    a_list=[Symbol(j) for j in ascii_lowercase[:2*n_basis]]         
+    return a_list
+
+def levin_general(f,g,const,lim_inf,lim_sup,n_basis=4):
     '''
     Levin method applied.
     The collocation points of the basis need to be equidistant.
     '''
-    start_time = time.time()
-    x = Symbol('x')
-    lim_inf=check_lim(lim_inf)
-    lim_sup=check_lim(lim_sup)
+    #FIND HOW TO DIVIDE X TO THE REST or mmm probably i don't have to
     
-    #I have to add the check if function has only x as a variable
-    x_val=[]
-    for i in range(n_basis):
-        t=i/n_basis
-        u = 1-t
-        x_val.append(lim_inf*u +  lim_sup*t)
-        #print(x_val)
-        
-    w=([besselj(0, x), besselj(1, x)])  
-    A=([0,-1],[1,-1/x])
-    w_prime=A*w
-    new_eq,variables=general_collocation_method(A,f,n_basis)
-    equations_list=[]
-    for i, x_i in enumerate(x_val):
-        equations_list.append(simplify(expand(new_eq.subs({x:x_i}))))
-
-    A, b = linear_eq_to_matrix(equations_list, variables)
-    elapsed_time = time.time() - start_time
-    print('Created set of linear equations after: ',time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
-    #coefficients= list(fp.lu_solve(A, b), variables).args[0])
-    A_n=Matrix(np.hstack((A,b)))
- 
-    coefficients_LU= solve_linear_system_LU(A_n,variables)
+    a=lim_inf
+    b=lim_sup
+    n=n_basis
+    n2=2*n_basis
+    k= Symbol('k')
+    #j_0=besselj(0, x)
+    #j_1=besselj(1, x)
     
-    elapsed_time = time.time() - start_time
-    print('Found the coefficient for the non-rapidly-oscillatory f(x) after:', time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
+    d=(a+b)/2+0.0000000001
+    u=(x-d)**(k-1)
+    uprime=(k-1)*(x-d)**(k-2)
+
+    point=[a+(j-1)*(b-a)/(n-1) for j in range(1,n+1)] #NOT SURE ABOUT N OR 2N
+    rhs = np.zeros(n2)  #right hand side, aka f(x)
     
-    coefficients=np.zeros(len(variables),dtype=np.complex128)
-    for i,value in enumerate(coefficients_LU.values()):
-        coefficients[i]=expand(value)
-        #print(sol[i])
-        
-    #elapsed_time = time.time() - start_time
-    F_new=F.copy()
-    for coef,coef_val in zip(variables, coefficients):
-        F_new=F_new.subs({coef:coef_val}) 
-    evaluate=F_new*exp(I*g)
-    solution=N(simplify(evaluate.subs({x:lim_sup})-evaluate.subs({x:lim_inf}))) #integral evaluated at the boundaries
-    return solution
-
-'''
-def linsolv(A,b,variables):
-     coefficients= list(linsolve((A, b), variables).args[0])
-     return coefficients
-
-'''          
+    for i,r in enumerate(point):
+        rhs[i]=f.subs({x:r})
+    
+    #levin's approximation
+    A, Id=Bes(const,x,n_basis,point)
+    A_f=A*u*I*g.diff()+Id*uprime
+    
+    for j in range(n2):
+        if j<n:
+            val=point[j]
+        else:
+            val=point[j-n]
+        #print(j)
+        for k_i in range(n2):
+            k_=k_i+1
+            A_f[j,k_i]=A_f[j,k_i].subs({x:val,k:k_})
+            #print(j,k_i)
+            k_i=0
+    c=coeff_list(n)
+    c=np.hstack((c,c))
+   # rhs=np.array(rhs)
+    rhs=rhs.reshape(n2,1)
+    #print(rhs.shape, A_n.shape)
+    A_n=Matrix(np.hstack((A_f,rhs)))  
+    print(rhs.shape, A_n.shape)
+    #print(A_n)      
+    coefficients_LU= solve_linear_system_LU(A_n,c)
+    
+  
+    return coefficients_LU
+         
 
 if __name__ == "__main__":
     
@@ -210,11 +244,10 @@ if __name__ == "__main__":
     #J_lambda = lambdify(x, J, {'besselj': scipy_besselj})
     f=x
     g=(0.5*x**2-x)
-    w=J*exp(g)
-    #for i in range(1,4):
-    #    print((i-1)/(4-1))
+    w=J*exp(I*g)
+
         
-    print(levin(f,g,0,np.inf,n_basis=7))    
+    print(levin_general(f,g,1,0.5,1,n_basis=7))    
 
 
 
