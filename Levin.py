@@ -59,37 +59,6 @@ def collocation_method(f,n_basis):
     F=np.asarray(a_list).dot(np.asarray(u))
     return F, a_list
 
-
-def general_collocation_method(A,f,n_basis):
-    '''
-    input:  f(x) function in the integral
-            g(x), exponent of the exponential 
-            n_basis, amount of basis funcitons
-            
-    output: the function F(x) which has been approximated using the collocation method.          
-    
-    '''   
-    
-    x = Symbol('x')
-    F = Function('F')(x)
-
-    a_list=[] #list of the constants in the inear combination of n basis funcitons
-    u=[] #basis functions
-
-    for i,c in zip(range(1,n_basis+1),ascii_lowercase):
-        u.append(x**(i-1)) #monomials
-        c = Symbol(str(c))
-        a_list.append(c)
-
-    #print(u)
-    print(a_list)
-    F=np.asarray(a_list).dot(np.asarray(u))
-    #print(F)    
-
-    new_eq=F.diff(x)+A.transpose()*F-f
-    print(new_eq)
-    return F,new_eq, a_list
-
 def check_lim(lim):
     '''
     chech the boundaries of the integral
