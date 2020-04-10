@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.special as ss 
-from sympy import Symbol,simplify,expand,diff, Function, solve_linear_system_LU, besselj, I,linear_eq_to_matrix,Matrix,exp,N
+from sympy import Symbol,simplify,expand,diff, Function, solve_linear_system_LU, besselj, I,linear_eq_to_matrix,Matrix,exp,N, symarray
 from string import ascii_lowercase
 #import sympy.abc as abc  
 import random
@@ -8,6 +8,7 @@ from scipy.special import jv as scipy_besselj
 import sys
 import time
 from mpmath import fp
+import pandas as pd
 
 # $\int e^{ig(x)}f(x)dx$
 # 
@@ -145,58 +146,63 @@ def Bes(const,x,n_basis,point,order=1):
     return A, Id
 
 def coeff_list(n_basis):   
+    symbols('b_0:10')
     a_list=[Symbol(j) for j in ascii_lowercase[:2*n_basis]]         
     return a_list
 
-def compactification():
-    x=x/(1-x)
 
-def levin_general(f,g,const,lim_inf,lim_sup,n_basis=4):
+def levin_general(f,g,const,a,b,w_oscillating,n_basis=4):
     '''
     Levin method applied.
     The collocation points of the basis need to be equidistant.
+    g: exponent of the exponential
+    f: x
     '''
-    #FIND HOW TO DIVIDE X TO THE REST or mmm probably i don't have to
+
     start_time = time.time()
-    a=lim_inf
-    b=lim_sup
     n=n_basis
     n2=2*n_basis
     k= Symbol('k')
     #j_0=besselj(0, x)
     #j_1=besselj(1, x)
+    #print(N(w_oscillating.subs({x:a})))
     
     d=(a+b)/2+0.0000000001
-    u=(x-d)**(k-1)
-    uprime=(k-1)*(x-d)**(k-2)
+    
+    u=(x-d)**(k-1) #points in the range of integration
+    uprime=(k-1)*(x-d)**(k-2) #derivative of u
 
-    point=[a+(j-1)*(b-a)/(n-1) for j in range(1,n+1)] #NOT SURE ABOUT N OR 2N
+    point=[a+(j-1)*(b-a)/(n-1) for j in range(1,n+1)]
     rhs = np.zeros(n2)  #right hand side, aka f(x)
     
     for i,r in enumerate(point):
         rhs[i]=f.subs({x:r})
     rhs=Matrix(rhs)
     
-    #levin's approximation
+    #levin's approximation of the bessel function
     A, Id=Bes(const,x,n_basis,point)
-    A_f=A*u*I*g.diff()+Id*uprime  #here I create the matrix with the contribute of the Bessel function and the exponential
+    #A_g=J*g.diff()
+    A_g=1
+    A_f=A*u*A_g+Id*uprime  #here I create the matrix with the contribute of the Bessel function and the exponential
     
-    
+    #print(A_f[8,:])
     for j in range(n2):
         if j<n:
             val=point[j]
         else:
             val=point[j-n]
-        #print(j)
         for k_i in range(n2):
-            k_=k_i+1
+            if k_i<n:
+                k_=k_i+1
+            else:
+                k_=k_i+1 -n
+            #print(k_)
             A_f[j,k_i]=A_f[j,k_i].subs({x:val,k:k_})
             #print(j,k_i)
-            k_i=0
-            
-    if False:       
-        c=coeff_list(n)
-        c=np.hstack((c,c))
+        k_i=0
+    #print(A_f[8,:])
+    if True:       
+        c=symarray('c',n2)
         rhs=rhs.reshape(n2,1)
         A_n=Matrix(np.hstack((A_f,rhs)))      
         coefficients_LU=solve_linear_system_LU(A_n,c)
@@ -205,34 +211,54 @@ def levin_general(f,g,const,lim_inf,lim_sup,n_basis=4):
         for i,value in enumerate(coefficients_LU.values()):
             coefficients[i]=expand(value)
             
-    if True:
+    if False: #I checked which one is the faster
         sol=A_f.LUsolve(rhs)
         coefficients=np.zeros(n2,dtype=np.complex128)
         for i,value in enumerate(sol):
             coefficients[i]=expand(value)
    
-    approx_inf=[u.subs({x:1,k:j}) for j in range(n)]
-    approx_sup=[u.subs({x:2,k:j}) for j in range(n)]
+    monomials_inf=[u.subs({x:a,k:j}) for j in range(1,n+1)]
+    monomials_sup=[u.subs({x:b,k:j}) for j in range(1,n+1)]
   
-    result=np.dot(approx_sup,coefficients[:n])-np.dot(approx_inf,coefficients[:n])
+    result=N(np.dot(monomials_sup,coefficients[:n])*w_oscillating.subs({x:b})-np.dot(monomials_inf,coefficients[:n])*w_oscillating.subs({x:a}))
     
     elapsed_time = time.time() - start_time
-    print('Found the coefficient for the non-rapidly-oscillatory f(x) after:', time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
-    return result
+    print('Found the coefficient for the non-rapidly-oscillatory f(x) after:', \
+          time.strftime("%H:%M:%S", time.gmtime(elapsed_time))+' with '+str(n_basis)+' basis')
+    return result,elapsed_time
          
 
 if __name__ == "__main__":
     
     x = Symbol('x')
-    J = besselj(0, x)
-    #J_lambda = lambdify(x, J, {'besselj': scipy_besselj})
     f=x
-    g=(0.5*x**2-x)
-    w=J*exp(I*g)
-
-        
-    print(levin_general(f,g,1,0.5,1,n_basis=7))    
-
+    g=1
+    w_SIS=0.1
+    bess_func_arg=w_SIS*1
+    J = besselj(0, bess_func_arg*x)
+    #J_lambda = lambdify(x, J, {'besselj': scipy_besselj})
+    #g=(0.5*x**2-x)
+    w_oscillating=J#*exp(I*g)
+    basis=[]
+    result=[]
+    elapsed_time=[]
+   
+    '''
+    for i in range(2,20):    
+        r,elaps_time=levin_general(f,g*w,w*1,0.0000001,10,n_basis=i) 
+        result.append(r)
+        elapsed_time.append(elaps_time)
+        basis.append(i)
+    
+    df = pd.DataFrame(list(zip(basis,result,elapsed_time)),columns=['basis','result','time'] )
+    print(df)
+    df.to_csv('dataframe_w_'+str(w), sep='\t')
+    '''    
+      
+    
+    #print(levin_general(f,g*w,w*1,0.0000001,10,19)) 
+   
+    print(levin_general(f,1,bess_func_arg,0.0000001,10,w_oscillating,50)) 
 
 
 
