@@ -1,9 +1,7 @@
 import numpy as np
-import scipy.special as ss 
 from sympy import Symbol,simplify,expand,diff, Function, solve_linear_system_LU, besselj, I,linear_eq_to_matrix,Matrix,exp,N, symarray
 from string import ascii_lowercase
 #import sympy.abc as abc  
-import random
 from scipy.special import jv as scipy_besselj
 import sys
 import time
@@ -133,9 +131,8 @@ def Bes(const,x,n_basis,point,order=1):
     A=Matrix(np.zeros([2*n_basis,2*n_basis]))
     Id=Matrix(np.zeros([2*n_basis,2*n_basis]))
     for j in range(n_basis):
-        val=point[j]
         for k_i in range(n_basis):
-            k_=k_i+1
+            #k_=k_i+1
             A[j,k_i]=(order - 1)/x
             Id[j,k_i]=1
             A[j+n_basis,k_i]=const
@@ -258,9 +255,9 @@ if __name__ == "__main__":
             range_int.append(s)
         i=0    
         
-        df = pd.DataFrame(list(zip(basis,result,elapsed_time,range_int)),columns=['basis','result','time','integration range'] )
-        print(df)
-        df.to_csv('dataframe_w_'+str(w), sep='\t')
+    df = pd.DataFrame(list(zip(basis,result,elapsed_time,range_int)),columns=['basis','result','time','integration range'] )
+    print(df)
+    df.to_csv('dataframe_bessfuncarg_'+str(bess_func_arg)+'g'+str(g), sep='\t')
          
       
     
