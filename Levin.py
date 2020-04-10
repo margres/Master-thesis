@@ -185,7 +185,7 @@ def levin_general(f,g,const,a,b,w_oscillating,n_basis=4):
     A_g=1
     A_f=A*u*A_g+Id*uprime  #here I create the matrix with the contribute of the Bessel function and the exponential
     
-    #print(A_f[8,:])
+
     for j in range(n2):
         if j<n:
             val=point[j]
@@ -196,11 +196,11 @@ def levin_general(f,g,const,a,b,w_oscillating,n_basis=4):
                 k_=k_i+1
             else:
                 k_=k_i+1 -n
-            #print(k_)
+           
             A_f[j,k_i]=A_f[j,k_i].subs({x:val,k:k_})
-            #print(j,k_i)
+
         k_i=0
-    #print(A_f[8,:])
+
     if True:       
         c=symarray('c',n2)
         rhs=rhs.reshape(n2,1)
@@ -242,23 +242,31 @@ if __name__ == "__main__":
     basis=[]
     result=[]
     elapsed_time=[]
-   
-    '''
-    for i in range(2,20):    
-        r,elaps_time=levin_general(f,g*w,w*1,0.0000001,10,n_basis=i) 
-        result.append(r)
-        elapsed_time.append(elaps_time)
-        basis.append(i)
+    range_int=[]
     
-    df = pd.DataFrame(list(zip(basis,result,elapsed_time)),columns=['basis','result','time'] )
-    print(df)
-    df.to_csv('dataframe_w_'+str(w), sep='\t')
-    '''    
+    for s in range(1,5):
+        if s==1:
+            pass
+        else:
+            s=s*2
+            
+        for i in range(2,20):    
+            r,elaps_time=levin_general(f,1,bess_func_arg,0.0000001,s,w_oscillating,n_basis=i*5) 
+            result.append(r)
+            elapsed_time.append(elaps_time)
+            basis.append(i*5)
+            range_int.append(s)
+        i=0    
+        
+        df = pd.DataFrame(list(zip(basis,result,elapsed_time,range_int)),columns=['basis','result','time','integration range'] )
+        print(df)
+        df.to_csv('dataframe_w_'+str(w), sep='\t')
+         
       
     
     #print(levin_general(f,g*w,w*1,0.0000001,10,19)) 
    
-    print(levin_general(f,1,bess_func_arg,0.0000001,10,w_oscillating,50)) 
+    #print(levin_general(f,1,bess_func_arg,0.0000001,1,w_oscillating,19)) 
 
 
 
