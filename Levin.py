@@ -178,8 +178,12 @@ def levin_general(f,g,const,a,b,w_oscillating,n_basis=4):
     
     #levin's approximation of the bessel function
     A, Id=Bes(const,x,n_basis,point)
-    #A_g=J*g.diff()
-    A_g=1
+    
+    if g!=1:
+        A_g=I*g.diff()
+    else:
+        A_g=1   
+        
     A_f=A*u*A_g+Id*uprime  #here I create the matrix with the contribute of the Bessel function and the exponential
     
 
@@ -229,13 +233,16 @@ if __name__ == "__main__":
     
     x = Symbol('x')
     f=x
-    g=1
+    y=1
     w_SIS=0.1
-    bess_func_arg=w_SIS*1
+    bess_func_arg=w_SIS*y
     J = besselj(0, bess_func_arg*x)
-    #J_lambda = lambdify(x, J, {'besselj': scipy_besselj})
-    #g=(0.5*x**2-x)
-    w_oscillating=J#*exp(I*g)
+    g=w_SIS*(0.5*x**2-x)
+    w_oscillating=J*exp(I*g)
+    
+    
+    
+    
     basis=[]
     result=[]
     elapsed_time=[]
@@ -248,7 +255,7 @@ if __name__ == "__main__":
             s=s*2
             
         for i in range(2,20):    
-            r,elaps_time=levin_general(f,1,bess_func_arg,0.0000001,s,w_oscillating,n_basis=i*5) 
+            r,elaps_time=levin_general(f,g,bess_func_arg,0.0000001,s,w_oscillating,n_basis=i*5) 
             result.append(r)
             elapsed_time.append(elaps_time)
             basis.append(i*5)
@@ -256,14 +263,14 @@ if __name__ == "__main__":
         i=0    
         
     df = pd.DataFrame(list(zip(basis,result,elapsed_time,range_int)),columns=['basis','result','time','integration range'] )
-    print(df)
-    df.to_csv('dataframe_bessfuncarg_'+str(bess_func_arg)+'g'+str(g), sep='\t')
+    #print(df)
+    df.to_csv('dataframe_og_func.txt', sep='\t')
          
       
     
     #print(levin_general(f,g*w,w*1,0.0000001,10,19)) 
-   
-    #print(levin_general(f,1,bess_func_arg,0.0000001,1,w_oscillating,19)) 
+    
+    #print(levin_general(f,g,bess_func_arg,0.0000001,1,w_oscillating,)[0]) 
 
 
 
