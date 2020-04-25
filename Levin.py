@@ -44,7 +44,7 @@ def coordinate_transformation(x,b,f,g,w_oscillating):
     x_prime=1/(1-x)**2
     
     if b==np.inf:
-        b_new=0.999999
+        b_new=0.9999
     else:
         b_new=b/(1+b)
     if isinstance(f, Symbol):  
@@ -56,8 +56,20 @@ def coordinate_transformation(x,b,f,g,w_oscillating):
     w_oscillating=simplify(w_oscillating.subs({x:x_change}))
     
     return x_change,x_prime,b_new,f,g,w_oscillating
+
+def chebyshev_right_open(n):
     
+    nodes=[np.cos(((1 - 2*j + 2*n)*np.pi)/(4*n))**2 for j in range(1,n+1)]
+    #nodes.append(1)
+    #nodes.append(0)
     
+    return nodes
+
+def right_IMT(t):
+    
+    IMT=exp(1-1/(1-t))
+    
+    return IMT
 
 def levin_general(f,g,const,a,b,w_oscillating,n_basis):
     '''
@@ -90,8 +102,13 @@ def levin_general(f,g,const,a,b,w_oscillating,n_basis):
     #print('before:\n',b,'\n',f,'\n',g,'\n',w_oscillating)
     if b==np.inf:
         x_change,x_Jacobian,b,f,g,w_oscillating=coordinate_transformation(x,b,f,g,w_oscillating)
+        point=chebyshev_right_open(n)
+        #point=[a+(j-1)*(b-a)/(n-1) for j in range(1,n+1)]
     else:
         x_change=x
+        point=[a+(j-1)*(b-a)/(n-1) for j in range(1,n+1)]
+
+    print(point[int((n+1)/2)])    
     #print('after:\n', x_change,'\n', x_Jacobian,'\n',b,'\n',f,'\n',g,'\n',w_oscillating)
     #print(w_oscillating,'\n',simplify(f))
     
@@ -100,12 +117,11 @@ def levin_general(f,g,const,a,b,w_oscillating,n_basis):
     u=(x-d)**(k-1) #points in the range of integration
     uprime=(k-1)*(x-d)**(k-2) #derivative of u
 
-    point=[a+(j-1)*(b-a)/(n-1) for j in range(1,n+1)]
     rhs = np.zeros(n2)  #right hand side, aka f(x)
     #print(point)
     for i,r in enumerate(point):
         rhs[i]=f.subs({x:r})
-    rhs=Matrix(rhs)
+    #rhs=Matrix(rhs)
     
     #levin's approximation of the bessel function
     A, Id=Bes(const,x_change,n_basis,point)
@@ -129,7 +145,7 @@ def levin_general(f,g,const,a,b,w_oscillating,n_basis):
 
         k_i=0
     #print(A_f)
-    if True:       
+    if False:       
         c=symarray('c',n2)
         rhs=rhs.reshape(n2,1)
         A_n=Matrix(np.hstack((A_f,rhs)))      
@@ -139,17 +155,15 @@ def levin_general(f,g,const,a,b,w_oscillating,n_basis):
         for i,value in enumerate(coefficients_LU.values()):
             coefficients[i]=expand(value)
             
-    if False: #I checked which one is the faster
-        sol=A_f.LUsolve(rhs)
-        coefficients=np.zeros(n2,dtype=np.complex128)
-        for i,value in enumerate(sol):
-            coefficients[i]=expand(value)
+    if True: #I checked which one is the faster
+        c=symarray('c',n2)
+        A_f=np.array(A_f,dtype=np.complex128)
+        coefficients=np.linalg.solve(A_f,rhs)
    
     monomials_inf=[u.subs({x:a,k:j}) for j in range(1,n+1)]
     monomials_sup=[u.subs({x:b,k:j}) for j in range(1,n+1)]
   
     result=N(np.dot(monomials_sup,coefficients[:n])*w_oscillating.subs({x:b})-np.dot(monomials_inf,coefficients[:n])*w_oscillating.subs({x:a}))
-    
     elapsed_time = time.time() - start_time
     #print('Found the coefficient for the non-rapidly-oscillatory f(x) after:', \
         #  time.strftime("%H:%M:%S", time.gmtime(elapsed_time))+' with '+str(n_basis)+' basis')
@@ -165,10 +179,10 @@ if __name__ == "__main__":
     w_SIS=0.01
     bess_func_arg=w_SIS*y_n
     J = besselj(0, bess_func_arg*x)
-    #g=w_SIS*(0.5*x**2-x)
-    g=0
-    #w_oscillating=J*exp(I*g)
-    w_oscillating=J*exp(g)
+    g=w_SIS*(0.5*x**2-x)
+    #g=x
+    w_oscillating=J*exp(I*g)
+    #w_oscillating=J*exp(g)
     
     
     basis=[]

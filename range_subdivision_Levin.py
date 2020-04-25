@@ -56,10 +56,25 @@ def coordinate_transformation(x,b,f,g,w_oscillating):
     w_oscillating=simplify(w_oscillating.subs({x:x_change}))
     
     return x_change,x_prime,b_new,f,g,w_oscillating
+
+def chebyshev_right_open(n):
+    
+    nodes=[np.cos(((1 - 2*j + 2*n)*np.pi)/(4*n))**2 for j in range(1,n+1)]
+    #nodes.append(1)
+    #nodes.append(0)
+    
+    return nodes
+
+def right_IMT(t):
+    
+    IMT=exp(1-1/(1-t))
+    IMT_prime=IMT.diff()
+    return IMT
+
     
     
 
-def sub_levin_general(f,g,const,a,b,w_oscillating):
+def sub_levin_general(f,g,const,a,b,w_oscillating,n,point):
     '''
     Levin method applied.
     The collocation points of the basis need to be equidistant.
@@ -72,7 +87,6 @@ def sub_levin_general(f,g,const,a,b,w_oscillating):
     '''
 
     start_time = time.time()
-    n=19
     n2=2*n
     k= Symbol('k')
     
@@ -90,22 +104,25 @@ def sub_levin_general(f,g,const,a,b,w_oscillating):
     #print('before:\n',b,'\n',f,'\n',g,'\n',w_oscillating)
     if b==np.inf:
         x_change,x_Jacobian,b,f,g,w_oscillating=coordinate_transformation(x,b,f,g,w_oscillating)
+        #point=chebyshev_right_open(n)
+        #u=chebyshevt(0, x)
+        #point=[a+(j-1)*(b-a)/(n-1) for j in range(1,n+1)]
     else:
         x_change=x
-    #print('after:\n', x_change,'\n', x_Jacobian,'\n',b,'\n',f,'\n',g,'\n',w_oscillating)
-    #print(w_oscillating,'\n',simplify(f))
-    
+        #point=[a+(j-1)*(b-a)/(n-1) for j in range(1,n+1)]
+        
     d=(a+b)/2+0.0000000001
-    
     u=(x-d)**(k-1) #points in the range of integration
     uprime=(k-1)*(x-d)**(k-2) #derivative of u
 
-    point=[a+(j-1)*(b-a)/(n-1) for j in range(1,n+1)]
+    #print('after:\n', x_change,'\n', x_Jacobian,'\n',b,'\n',f,'\n',g,'\n',w_oscillating)
+    #print(w_oscillating,'\n',simplify(f))
+    
     rhs = np.zeros(n2)  #right hand side, aka f(x)
     #print(point)
     for i,r in enumerate(point):
         rhs[i]=f.subs({x:r})
-    rhs=Matrix(rhs)
+    #rhs=Matrix(rhs)
     
     #levin's approximation of the bessel function
     A, Id=Bes(const,x_change,n,point)
@@ -129,35 +146,93 @@ def sub_levin_general(f,g,const,a,b,w_oscillating):
 
         k_i=0
     #print(A_f)
-    if True:       
-        c=symarray('c',n2)
-        rhs=rhs.reshape(n2,1)
-        A_n=Matrix(np.hstack((A_f,rhs)))      
-        coefficients_LU=solve_linear_system_LU(A_n,c)
-        
-        coefficients=np.zeros(len(c),dtype=np.complex128)
-        for i,value in enumerate(coefficients_LU.values()):
-            coefficients[i]=expand(value)
-  
-   
-    monomials_inf=[u.subs({x:a,k:j}) for j in range(1,n+1)]
-    monomials_sup=[u.subs({x:b,k:j}) for j in range(1,n+1)]
-  
-    sub_result=N(np.dot(monomials_sup,coefficients[:n])*w_oscillating.subs({x:b})-np.dot(monomials_inf,coefficients[:n])*w_oscillating.subs({x:a}))
+          
+    c=symarray('c',n2)
+    A_f=np.array(A_f,dtype=np.complex128)
+    coefficients=np.linalg.solve(A_f,rhs)
     
+    sub_n=int((n+1)/2)
+    print('sub_n: ',sub_n)
+    print('n:',n)
+    #sub_A_f=A_f[:sub_n,:sub_n]
+    sub_coefficients=[coefficients[j] for j in range(0,n2,2)]
+    sub_monomials_start=[u.subs({x:a,k:j}) for j in range(1,sub_n+1)]
+    sub_monomials_stop=[u.subs({x:b,k:j}) for j in range(1,sub_n+1)]
+   
+    monomials_start=[u.subs({x:a,k:j}) for j in range(1,n+1)]
+    monomials_stop=[u.subs({x:b,k:j}) for j in range(1,n+1)]
+  
+    result=N(np.dot(monomials_stop,coefficients[:n])*w_oscillating.subs({x:b})-np.dot(monomials_start,coefficients[:n])*w_oscillating.subs({x:a}))
+    
+    sub_result=N(np.dot(sub_monomials_stop,sub_coefficients[:sub_n])*w_oscillating.subs({x:b})-np.dot(sub_monomials_start,sub_coefficients[:sub_n])*w_oscillating.subs({x:a}))
     elapsed_time = time.time() - start_time
     #print('Found the coefficient for the non-rapidly-oscillatory f(x) after:', \
         #  time.strftime("%H:%M:%S", time.gmtime(elapsed_time))+' with '+str(n_basis)+' basis')
     #print('time: ',elapsed_time)
-    return sub_result
+    return result,sub_result
 
-def Levin(f,g,const,inf,sup,w_oscillating,n_basis):
+def error(a,b):
+    return abs(a-b)
+
+def adaptive_subdivision(f,g,const,start,end,w_oscillating,point,n_basis=19):
+
+    n=int((n_basis+1)/2)
+    point_1=point[:n] #1 left
+    point_2=point[n-1:] #2 right
+    result_1,sub_result_1=sub_levin_general(f,g,const,start,point[n-1],w_oscillating,n,point_1)
+    result_2,sub_result_2=sub_levin_general(f,g,const,point[n-1],end,w_oscillating,n,point_2)
     
-    point=[inf+(j-1)*(sup-inf)/(n_basis-1) for j in range(1,n_basis+1)]
+    result=result_1+result_2
+    sub_result=sub_result_1+sub_result_2
+    difference=error(result,sub_result)
+    
+    difference_1=error(result_1,sub_result_1)
+    difference_2=error(result_2,sub_result_2)
+    
+    if difference_1>difference_2: 
+        #again over left side
 
+        res_side_ok=result_2
+        start=start 
+        end=point[n-1]
+    else:
+        #again on right side
+   
+        res_side_ok=result_1
+        start=point[n-1]
+        end=end
+        
+    
+    return difference, result, res_side_ok, start, end
+    
+            
+def Levin(f,g,const,start,end,w_oscillating,n_basis=19):
+    
+    point=[start+(j-1)*(end-start)/(n_basis-1) for j in range(1,n_basis+1)]
+    result,sub_result=sub_levin_general(f,g,const,start,end,w_oscillating,n_basis, point)
+    difference=error(result,sub_result)
+    print('error ',difference)
+    print('result ',result)
+    print('subresult ',sub_result )
+    difference=1
+    result_not_iterating=[]
+    
+    while difference>0.0005:
+        difference,result, res_side_ok, start, end=adaptive_subdivision(f,g,const,start,end,w_oscillating,point)
+        result_not_iterating.append(res_side_ok)
+        
+    return result    
+
+
+    
+'''
+def Levin(f,g,const,start,end,w_oscillating,n_basis):
+    
+    #point=[start+(j-1)*(end-start)/(n_basis-1) for j in range(1,n_basis+1)]
+    #print(point)
     sub_results=[]
     for i in range(1,n_basis):
-        print(i-1,i)
+        print(point[i-1],point[i])
         a=point[i-1]
         b=point[i]
         sub_results.append(sub_levin_general(f,g,const,a,b,w_oscillating))
@@ -165,20 +240,21 @@ def Levin(f,g,const,inf,sup,w_oscillating,n_basis):
     result=sum(sub_results)    
     print(sub_results)
     return result    
-
+'''
 if __name__ == "__main__":
     
+
+    #w_oscillating=J*exp(g)
     x = Symbol('x')
     f=x
     y_n=1
     w_SIS=0.01
     bess_func_arg=w_SIS*y_n
     J = besselj(0, bess_func_arg*x)
-    #g=w_SIS*(0.5*x**2-x)
-    g=0
-    #w_oscillating=J*exp(I*g)
-    w_oscillating=J*exp(g)
-    
+    g=w_SIS*(0.5*x**2-x)
+    #g=x
+    w_oscillating=J*exp(I*g)
+    #w_oscillating=J*exp(g)
     
     basis=[]
     result=[]
@@ -207,8 +283,8 @@ if __name__ == "__main__":
     '''
     
     #print(levin_general(f,g*w,w*1,0.0000001,10,19)) 
-    n_basis=25
-    result=Levin(f,g,bess_func_arg,0.0001,1,w_oscillating,n_basis)
+    n_basis=19
+    result=Levin(f,g,bess_func_arg,0.0001,1,w_oscillating)
     print('basis',n_basis,'result',result)
 
 
