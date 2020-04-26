@@ -112,7 +112,7 @@ def left_IMT(x,a,b,f,g,w_oscillating):
     
     
 
-def sub_levin_general(x,f,g,const,a,b,w_oscillating,IMT,n):
+def sub_levin_general(f,g,const,a,b,w_oscillating,IMT,n,amount_iteration):
     '''
     Levin method applied.
     The collocation points of the basis need to be equidistant.
@@ -124,9 +124,10 @@ def sub_levin_general(x,f,g,const,a,b,w_oscillating,IMT,n):
     n_basis: number of basis
     '''
 
+    
     start_time = time.time()
     n2=2*n
-    x_change=x
+    #x_change=x
     k= Symbol('k')
     x=Symbol('x')
     
@@ -142,10 +143,26 @@ def sub_levin_general(x,f,g,const,a,b,w_oscillating,IMT,n):
     #print('before:\n',b,'\n',f,'\n',g,'\n',w_oscillating)
    
   
-    x_change,a,b,f,g,w_oscillating=variable_change(x,a,b,f,g,w_oscillating)
+    
                                                               
     if IMT==True:
         x_change,a,b,f,g,w_oscillating=right_IMT(x,a,b,f,g,w_oscillating)
+    if b==np.inf:
+        x_change,a,b,f,g,w_oscillating=variable_change(x,a,b,f,g,w_oscillating)  
+    
+    x_change,a,b,f,g,w_oscillating=variable_change(x,a,b,f,g,w_oscillating)   
+    
+    middle_point=1/2**amount_iteration
+    if right==True:
+        end=end
+        start=end-middle_point
+    elif left==True:
+        start=start
+        end=start+middle_point
+        
+    
+    
+    
     #else:
     #    x_change,a,b,f,g,w_oscillating=left_IMT(x,a,b,f,g,w_oscillating)
   
