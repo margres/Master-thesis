@@ -106,9 +106,10 @@ def levin_general(f,g,const,a,b,w_oscillating,n_basis):
         #point=[a+(j-1)*(b-a)/(n-1) for j in range(1,n+1)]
     else:
         x_change=x
-        point=[a+(j-1)*(b-a)/(n-1) for j in range(1,n+1)]
+        #point=[a+(j-1)*(b-a)/(n-1) for j in range(1,n+1)]
+        point=chebyshev_right_open(n)
 
-    print(point[int((n+1)/2)])    
+   
     #print('after:\n', x_change,'\n', x_Jacobian,'\n',b,'\n',f,'\n',g,'\n',w_oscillating)
     #print(w_oscillating,'\n',simplify(f))
     
@@ -163,8 +164,9 @@ def levin_general(f,g,const,a,b,w_oscillating,n_basis):
     monomials_inf=[u.subs({x:a,k:j}) for j in range(1,n+1)]
     monomials_sup=[u.subs({x:b,k:j}) for j in range(1,n+1)]
   
-    result=N(np.dot(monomials_sup,coefficients[:n])*w_oscillating.subs({x:b})-np.dot(monomials_inf,coefficients[:n])*w_oscillating.subs({x:a}))
+    result=complex(N(np.dot(monomials_sup,coefficients[:n])*w_oscillating.subs({x:b})-np.dot(monomials_inf,coefficients[:n])*w_oscillating.subs({x:a})))
     elapsed_time = time.time() - start_time
+    print(result)
     #print('Found the coefficient for the non-rapidly-oscillatory f(x) after:', \
         #  time.strftime("%H:%M:%S", time.gmtime(elapsed_time))+' with '+str(n_basis)+' basis')
     print('time: ',elapsed_time)
@@ -182,7 +184,7 @@ if __name__ == "__main__":
     g=w_SIS*(0.5*x**2-x)
     #g=x
     w_oscillating=J*exp(I*g)
-    #w_oscillating=J*exp(g)
+
     
     
     basis=[]
@@ -196,28 +198,27 @@ if __name__ == "__main__":
             pass
         else:
             s=s*2
-           
+    '''    
     for i in range(4,10):    
         print(i)
-        r,elaps_time=levin_general(f,g,bess_func_arg,0.0000001,1,w_oscillating,n_basis=i) 
+        r,elaps_time=levin_general(f,g,bess_func_arg,0.0000001,1,w_oscillating,n_basis=i*5) 
         result.append(r)
         elapsed_time.append(elaps_time)
         basis.append(i*5)
-        range_int.append(s)
+        range_int.append(1)
     i=0    
         
     df = pd.DataFrame(list(zip(basis,result,elapsed_time,range_int)),columns=['basis','result','time','integration range'] )
     #print(df)
-    df.to_csv('dataframe_og_func_small.txt', sep='\t')
+    df.to_csv('dataframe_fun_og.txt', sep='\t')
     '''
     
     #print(levin_general(f,g*w,w*1,0.0000001,10,19)) 
     n_basis=19
-    result=levin_general(f,g,bess_func_arg,0.0001,1,w_oscillating,n_basis)[0]
+    result=levin_general(f,g,bess_func_arg,0.000000001,1,w_oscillating,n_basis)[0]
     print('basis',n_basis,'result',result)
-
-
-
+    '''
+  
 
 
 
