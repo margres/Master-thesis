@@ -36,6 +36,7 @@ def variable_change(x,a,b,f,g,w_oscillating):
     '''
     change of the integration variable, From a 0-inf integral to a 0-1 
     '''
+    #print(type(w_oscillating))
     b_new=1
     a_new=0
     if b==np.inf:
@@ -47,26 +48,20 @@ def variable_change(x,a,b,f,g,w_oscillating):
     else:
         x_change=a+x*(b-a)
         x_prime=x_change.diff()
-
-        #a_new=(x.subs({x:a})-a)/(b-a)
-        #b_new=
         
-    if isinstance(f, Symbol):  
-        #print(f)
-        f=f.subs({x:x_change})*x_prime
-        #print(f)
-    if isinstance(g, Symbol):
-        g=g.subs({x:x_change})
-    w_oscillating=simplify(w_oscillating.subs({x:x_change}))
-    
-    return x_change,a_new,b_new,f,g,w_oscillating
+
+    f=f.subs({x:x_change})*x_prime
+    g=g.subs({x:x_change})
+        
+    w_oscillating=simplify(w_oscillating.subs({'x':x_change}))
+    print(w_oscillating)
+    return a_new,b_new,f,g,w_oscillating
 
 
 def chebyshev_right_open(n):
     
     nodes=[np.cos(((1 - 2*j + 2*n)*np.pi)/(4*n))**2 for j in range(1,n+1)]
-    #nodes.append(1)
-    #nodes.append(0)
+
     
     return nodes
 
@@ -75,19 +70,18 @@ def right_IMT(x,a,b,f,g,w_oscillating):
     b_new=1
     a_new=0
     
+    IMT_x=1-exp(1-1/(1-x))
+    IMT_prime=IMT_x.diff()
     
-    IMT_x=exp(1-1/(1-x))
-    IMT_prime=-IMT_x.diff()
-    
-    if isinstance(f, Symbol):   
-        f=f.subs({x:IMT_x})*IMT_prime
-    if isinstance(g, Symbol):
-        g=g.subs({x:IMT_x})
+
+    f=f.subs({'x':IMT_x})*IMT_prime
+    g=g.subs({'x':IMT_x})
         
-    w_oscillating=simplify(w_oscillating.subs({x:IMT_x}))
+    w_oscillating=w_oscillating.subs({'x':IMT_x})
+    #print('WWWWWWW',w_oscillating)
+
     
-    
-    return IMT_x,a_new,b_new,f,g,w_oscillating
+    return a_new,b_new,f,g,w_oscillating
 
 def left_IMT(x,a,b,f,g,w_oscillating):
 
@@ -103,16 +97,16 @@ def left_IMT(x,a,b,f,g,w_oscillating):
     if isinstance(g, Symbol):
         g=g.subs({x:IMT_x})
         
-    w_oscillating=simplify(w_oscillating.subs({x:IMT_x}))
+    w_oscillating=w_oscillating.subs({x:IMT_x})
     
     
-    return IMT_x,a_new,b_new,f,g,w_oscillating
+    return a_new,b_new,f,g,w_oscillating
 
     
     
     
 
-def sub_levin_general(f,g,const,a,b,w_oscillating,IMT,n,amount_iteration):
+def sub_levin_general(f,g,const,a,b,w_oscillating,IMT,n,amount_bisections,direction,dx):
     '''
     Levin method applied.
     The collocation points of the basis need to be equidistant.
@@ -124,12 +118,11 @@ def sub_levin_general(f,g,const,a,b,w_oscillating,IMT,n,amount_iteration):
     n_basis: number of basis
     '''
 
-    
     start_time = time.time()
     n2=2*n
-    #x_change=x
     k= Symbol('k')
     x=Symbol('x')
+
     
     point=chebyshev_right_open(n)
      
@@ -141,46 +134,54 @@ def sub_levin_general(f,g,const,a,b,w_oscillating,IMT,n,amount_iteration):
         A_g=I*g.diff() 
     
     #print('before:\n',b,'\n',f,'\n',g,'\n',w_oscillating)
-   
-  
-    
-                                                              
-    if IMT==True:
-        x_change,a,b,f,g,w_oscillating=right_IMT(x,a,b,f,g,w_oscillating)
+    if b!=np.inf and IMT==False:
+        #x_change=x
+        a,b,f,g,w_oscillating=variable_change(x,a,b,f,g,w_oscillating) 
     if b==np.inf:
-        x_change,a,b,f,g,w_oscillating=variable_change(x,a,b,f,g,w_oscillating)  
+        a,b,f,g,w_oscillating=variable_change(x,a,b,f,g,w_oscillating) 
+    if IMT==True:
+        a,b,f,g,w_oscillating=right_IMT(x,a,b,f,g,w_oscillating) 
+        ##apply only on right side and then end
     
-    x_change,a,b,f,g,w_oscillating=variable_change(x,a,b,f,g,w_oscillating)   
+
+    #everything is in a 0-1 range
     
-    middle_point=1/2**amount_iteration
-    if right==True:
-        end=end
-        start=end-middle_point
-    elif left==True:
-        start=start
-        end=start+middle_point
+    middle_point=0
+    sub_range=1/2**amount_bisections
+    #direction has +1 if goes on the right and -1 on the left
         
+    if IMT==False:
+        for am in range(1,amount_bisections+1):
+            middle_point+=direction[am-1]*(b-a)/2**am 
+        middle_point+=a
+        if dx==True:
+            a= middle_point 
+            b= middle_point+sub_range
+        elif dx==False:
+            a=middle_point-sub_range
+            b=middle_point 
+        else:
+            pass
+        print('bisection n. ', amount_bisections)
+        print('start ',a,'end ',b,'sub range of ',sub_range, 'middle point', middle_point)
+        #x_change,a,b,f,g,w_oscillating=variable_change(x_change,a,b,f,g,w_oscillating)   
+         
+
     
-    
-    
-    #else:
-    #    x_change,a,b,f,g,w_oscillating=left_IMT(x,a,b,f,g,w_oscillating)
-  
-    d=(a+b)/2+0.0000000001
+    #d=(a+b)/2+0.0000000001
     #u=(x-d)**(k-1) #points in the range of integration
     #uprime=(k-1)*(x-d)**(k-2) #derivative of u in terms of x
     
     u=chebyshevt(k,x) #idk the range of k for the chebyshev
     uprime=u.diff(x)
 
-    #print('after:\n', x_change,'\n', x_Jacobian,'\n',b,'\n',f,'\n',g,'\n',w_oscillating)
-    #print(w_oscillating,'\n',simplify(f))
+
     
     rhs = np.zeros(n2)  #right hand side, aka f(x)
-    #print(point)
+
     for i,r in enumerate(point):
         rhs[i]=f.subs({x:r})
-    #rhs=Matrix(rhs)
+
     
     #levin's approximation of the bessel function
     A, Id=Bes(const,x_change,n,point)
@@ -203,7 +204,7 @@ def sub_levin_general(f,g,const,a,b,w_oscillating,IMT,n,amount_iteration):
             A_f[j,k_i]=A_f[j,k_i].subs({x:val,k:k_})
 
         k_i=0
-    #print(A_f)
+  
           
     c=symarray('c',n2)
     A_f=np.array(A_f,dtype=np.complex128)
@@ -211,64 +212,73 @@ def sub_levin_general(f,g,const,a,b,w_oscillating,IMT,n,amount_iteration):
     
     
     sub_n=int((n+1)/2)
-    #print('sub_n: ',sub_n)
-    #print('n:',n)
-    #sub_A_f=A_f[:sub_n,:sub_n]
     sub_coefficients=[coefficients[j] for j in range(0,n2,2)] #every other coefficient
-    
+
+    l_coefficients=[coefficients[j] for j in range(0,n)]
+    r_coefficients=[coefficients[j] for j in range(n,n2)]
     
     sub_monomials_start=[u.subs({x:a,k:j}) for j in range(1,sub_n+1)] 
     sub_monomials_stop=[u.subs({x:b,k:j}) for j in range(1,sub_n+1)]
-   
+    #print(monomials_start)
     monomials_start=[u.subs({x:a,k:j}) for j in range(1,n+1)]
     monomials_stop=[u.subs({x:b,k:j}) for j in range(1,n+1)]
     
-    #print(x_change)
+    
   
-    try :
-        sub_result=complex(N(np.dot(sub_monomials_stop,sub_coefficients[:sub_n])*w_oscillating.subs({x:b})-np.dot(sub_monomials_start,sub_coefficients[:sub_n])*w_oscillating.subs({x:a})))
-        result=complex(N(np.dot(monomials_stop,coefficients[:n])*w_oscillating.subs({x:b})-np.dot(monomials_start,coefficients[:n])*w_oscillating.subs({x:a})))
+    if IMT==True:
+        w_a=exp(I*(0.015*1 - 0.01)- 1)*besselj(0, 0.01*1/1 - 1)     
+        w_b=1
+        #print('w_a',w_a)
+        #print('w_b',w_oscillating)
+    else:
+        w_a=w_oscillating.subs({x:a})
+        w_b=w_oscillating.subs({x:b})
+    
+    try:
+        sub_b=(np.dot(sub_monomials_stop,sub_coefficients[:sub_n])*w_b)
+        sub_a=np.dot(sub_monomials_start,sub_coefficients[:sub_n])*w_a
+        sub_result=complex(N(np.dot(sub_monomials_stop,sub_coefficients[:sub_n])*w_b-np.dot(sub_monomials_start,sub_coefficients[:sub_n])*w_a))
+        result=complex(N(np.dot(monomials_stop,coefficients[:n])*w_b-np.dot(monomials_start,coefficients[:n])*w_a))
+        #r_result=N(np.dot(sub_monomials_stop,r_coefficients[:sub_n])*w_oscillating.subs({x:b})-np.dot(sub_monomials_start,r_coefficients[:sub_n])*w_oscillating.subs({x:a}))
+        #l_result=N(np.dot(sub_monomials_stop,l_coefficients[:sub_n])*w_oscillating.subs({x:b})-np.dot(sub_monomials_start,l_coefficients[:sub_n])*w_oscillating.subs({x:a}))
+
     except:
-        result=N(np.dot(monomials_stop,coefficients[:n])*w_oscillating.subs({x:b})-np.dot(monomials_start,coefficients[:n])*w_oscillating.subs({x:a}))
-        sub_result=N(np.dot(sub_monomials_stop,sub_coefficients[:sub_n])*w_oscillating.subs({x:b})-np.dot(sub_monomials_start,sub_coefficients[:sub_n])*w_oscillating.subs({x:a}))
-   
+        result=N(np.dot(monomials_stop,coefficients[:n])*w_b-np.dot(monomials_start,coefficients[:n])*w_a)
+        sub_result=N(np.dot(sub_monomials_stop,sub_coefficients[:sub_n])*w_b-np.dot(sub_monomials_start,sub_coefficients[:sub_n])*w_a)
+        #r_result=N(np.dot(sub_monomials_stop,r_coefficients[:sub_n])*w_oscillating.subs({x:b})-np.dot(sub_monomials_start,r_coefficients[:sub_n])*w_oscillating.subs({x:a}))
+        #l_result=N(np.dot(sub_monomials_stop,l_coefficients[:sub_n])*w_oscillating.subs({x:b})-np.dot(sub_monomials_start,l_coefficients[:sub_n])*w_oscillating.subs({x:a}))
+    
+
+        
+    
+    
+    
     elapsed_time = time.time() - start_time
     
-    #print('Found the coefficient for the non-rapidly-oscillatory f(x) after:', \
-        #  time.strftime("%H:%M:%S", time.gmtime(elapsed_time))+' with '+str(n_basis)+' basis')
-    #print('time: ',elapsed_time)
-    
-    print('x_change',x_change)
-    
-    return result,sub_result, x_change
+    if IMT==True:
+        print(w_oscillating)
+        print('b',sub_b)
+        print('a',sub_a)
+    return result,sub_result
 
 def error(a,b):
     return abs(a-b)
 
-def adaptive_subdivision(x,f,g,const,start,end,w_oscillating,n,amount_bisections,r,l):
+def adaptive_subdivision(f,g,const,start,end,w_oscillating,n,amount_bisections,direction):
     #every integral is in 0-1
 
-    #IMT=False
-   #print('qqqqqq',start,end)
-    if end==np.inf and amount_bisections==1: # i know that is b infinite, i am not considering a singularity point in a atm
-        x,start,end,f,g,w_oscillating=variable_change(x,start,end,f,g,w_oscillating)
-        #print(start,end)
-    new_border=(end-start)/2 + start
+    IMT=False
     
-    if r==4:
+    if np.sum(direction)==4. and end==np.inf:
         IMT=True
-    if l==4:
+    elif np.sum(direction)==-4.:
         IMT='l'
-    else:
-        IMT=False
+
         
-    print('r',r)
           
-    print('bisection n. ', amount_bisections)
-    print('start ',start,'bisection at ',new_border, 'end ',end)
     
-    result_1,sub_result_1,x_1=sub_levin_general(x,f,g,const,start,new_border,w_oscillating,IMT,n)
-    result_2,sub_result_2,x_2=sub_levin_general(x,f,g,const,new_border,end,w_oscillating,IMT,n)
+    result_1,sub_result_1=sub_levin_general(f,g,const,start,end,w_oscillating,IMT,n,amount_bisections,direction,dx=False)
+    result_2,sub_result_2=sub_levin_general(f,g,const,start,end,w_oscillating,IMT,n,amount_bisections,direction,dx=True)
     
     result=result_1+result_2
     sub_result=sub_result_1+sub_result_2
@@ -283,41 +293,38 @@ def adaptive_subdivision(x,f,g,const,start,end,w_oscillating,n,amount_bisections
     if difference_1>difference_2 or np.isnan(result_1): 
         #again over left side
         
-        print('here - bisecting left')
+        print('here - bisecting LEFT')
         res_side_ok=result_2
-        end=start+new_border
-        start=start
-        l+=1
+        #end=start+new_border
+        #start=start
+        direction[amount_bisections]=-1
         #r=0
-    elif difference_1<difference_2 or np.isnan(result_2):
+    elif difference_1<=difference_2 or np.isnan(result_2):
         #again on right side
         
-        print('here - bisecting right')
+        print('here - bisecting RIGHT')
         res_side_ok=result_1
-        start=end-new_border
-        end=end
-        r+=1
+        #start=end-new_border
+        #end=end
+        direction[amount_bisections]=+1
         #l=0
         
     else: 
-        print('error')
+        sys.exit()
     
         
-    return difference, result, res_side_ok, start, end,r,l,x
+    return difference, result, res_side_ok, IMT
     
             
-def Levin(x,f,g,const,start,end,w_oscillating,n_basis=19):
-    
+def Levin(x,f,g,const,start,end,w_oscillating,n_basis):
     #point=[start+(j-1)*(end-start)/(n_basis-1) for j in range(1,n_basis+1)]
     IMT=False
-    if end==np.inf or start==np.inf: 
-        inf=True
-    else:
-        inf=False
     
     #i apply levin for the first time.
-    
-    result,sub_result,x=sub_levin_general(x,f,g,const,start,end,w_oscillating,IMT,n_basis)
+    direction=np.zeros(50)
+    direction[0]=1
+    amount_bisections=0
+    result,sub_result=sub_levin_general(f,g,const,start,end,w_oscillating,IMT,n_basis,amount_bisections,direction,dx='')
     difference=error(result,sub_result)
     print('error ',difference)
     print('result ',result)
@@ -328,39 +335,22 @@ def Levin(x,f,g,const,start,end,w_oscillating,n_basis=19):
     #if we see that we need to integrate more we apply again dividing the range in 2 parts.
     #this counts also the nan, it bisects the integration range, we keep bisecting the one with the singularity
     
-    amount_bisections=0
-    r=0
-    l=0
+
     while difference>0.0005 or np.isnan(difference)==True:
         amount_bisections+=1
-        difference,result, res_side_ok, start, end,r,l,x=adaptive_subdivision(x,f,g,const,start,end,w_oscillating,n_basis, amount_bisections,r,l)
-        results_side_ok.append(res_side_ok)           
+        difference,result, res_side_ok,IMT=adaptive_subdivision(f,g,const,start,end,w_oscillating,n_basis, amount_bisections,direction)
+        results_side_ok.append(res_side_ok)  
+        if amount_bisections==4. and IMT==True:
+            break
+          
         print('error ',difference)
+      
         print('sum ',sum(results_side_ok))
-        #print('result_not_iterating ',result_not_iterating )
-        
-        #if amount_bisections==3:
-        #    sys.exit
+
     return sum(results_side_ok)   
 
 
     
-'''
-def Levin(f,g,const,start,end,w_oscillating,n_basis):
-    
-    #point=[start+(j-1)*(end-start)/(n_basis-1) for j in range(1,n_basis+1)]
-    #print(point)
-    sub_results=[]
-    for i in range(1,n_basis):
-        print(point[i-1],point[i])
-        a=point[i-1]
-        b=point[i]
-        sub_results.append(sub_levin_general(f,g,const,a,b,w_oscillating))
-        
-    result=sum(sub_results)    
-    print(sub_results)
-    return result    
-'''
 if __name__ == "__main__":
     
 
@@ -375,7 +365,7 @@ if __name__ == "__main__":
     #g=x
     w_oscillating=J*exp(I*g)
     #w_oscillating=J*exp(g)
-    
+
     basis=[]
     result=[]
     elapsed_time=[]
@@ -404,7 +394,7 @@ if __name__ == "__main__":
     
     #print(levin_general(f,g*w,w*1,0.0000001,10,19)) 
     n_basis=19
-    result=Levin(x,f,g,bess_func_arg,0,np.inf,w_oscillating)
+    result=Levin(x,f,g,bess_func_arg,0,1000,w_oscillating,n_basis)
     print('basis',n_basis,'result',result)
 
 
