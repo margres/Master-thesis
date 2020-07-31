@@ -16,6 +16,7 @@ from itertools import combinations
 import scipy.optimize as op
 from past.builtins import xrange
 from scipy.optimize import fsolve
+from scipy.interpolate import UnivariateSpline
 
 def tau_point_mass(x_,y_,x_0, y_0,r): #time delay
     
@@ -75,8 +76,11 @@ def equations(p):
     
     return (der_r,der_theta)
 
-def plot_hist_parts(part,dx,n_bins=100):
-    values, bins, _ = plt.hist(part, n_bins, color='gray', weights=dx[:len(part)]*dx[:len(part)]/(np.max(part)-np.min(part))*n_bins*1/(2*np.pi))
+def amount_bins(crit_1, crit_2, step=0.001):
+    return (crit_2-crit_1)/step
+
+def plot_hist_parts(part,dx,n_bins):
+    values, bins, _ = plt.hist(part, n_bins, color='gray', weights=dx[:len(part)]*dx[:len(part)]/(np.max(part)-np.min(part))*n_bins)
     return values, bins
 
 def histogram(x,y, tau_critical):
@@ -118,19 +122,19 @@ def histogram(x,y, tau_critical):
         else:
             pass
 
-    values_1, bins_1=plot_hist_parts(first_part,dx)
-    values_2, bins_2=plot_hist_parts(second_part,dx)
-    values_3, bins_3=plot_hist_parts(third_part,dx)
-    values_4, bins_4=plot_hist_parts(fourth_part,dx)
+    values_1, bins_1=plot_hist_parts(first_part,dx,int(amount_bins(np.min(tau),tau_min1)))
+    values_2, bins_2=plot_hist_parts(second_part,dx,int(amount_bins(tau_min1,tau_saddle1)))
+    values_3, bins_3=plot_hist_parts(third_part,dx,int(amount_bins(tau_saddle1,tau_saddle2)))
+    values_4, bins_4=plot_hist_parts(fourth_part,dx,int(amount_bins(tau_saddle2,1)))
     plt.show()
 
     return values_1, bins_1,values_2, bins_2,values_3, bins_3,values_4, bins_4,mu_saddle1,mu_saddle2,mu_min1,mu_min2,tau_saddle1,tau_saddle2,tau_min1,tau_min2
     
 def contribute_min(mu_min):
-    return np.sqrt(mu_min)
+    return 2*np.pi*np.sqrt(mu_min)
 
 def contribute_saddle(mu_saddle, tau_1, tau_saddle, step, j):
-    return (-1/np.pi) * np.sqrt(-mu_saddle)*np.log((np.abs(tau_1+ step*j - tau_saddle)))
+    return -2* np.sqrt(-mu_saddle)*np.log((np.abs(tau_1+ step*j - tau_saddle)))
 
 
 def remove_critical(x,y, tau_critical):      
@@ -183,10 +187,40 @@ def remove_critical(x,y, tau_critical):
             b_saddle2.append(b)
         
     a=np.concatenate((a_min1_min2,a_min2_saddle1,a_saddle1_saddle2,a_saddle2))
-    b=np.concatenate((values_1-b_min1_min2,values_2-b_min2_saddle1,values_3-b_saddle1_saddle2,values_4-b_saddle2))
+    b_1=values_1-b_min1_min2
+    b_2=values_2-b_min2_saddle1
+    b_3=values_3-b_saddle1_saddle2
+    b_4=values_4-b_saddle2
+    b=np.concatenate((b_1,b_2,b_3,b_4))
         
     return a,b
 
+def fitting(a,b):
+    
+    n_sample=100
+    s = UnivariateSpline(a, b, s=n_sample)
+    xs = np.linspace(np.min(tau), 1, 10)
+    ys = s(xs)
+    plt.plot(a, b, 'o')
+    plt.plot(xs, ys)
+    plt.show()
+    
+    return xs,ys,n_sample
+
+
+def Fourier_transform_classical_part(ys,n_sample):
+    amount_zeros=1000
+    zeros=np.zeros(amount_zeros)
+    ys_with_zeros=np.concatenate((zeros,ys,zeros))
+    freqs = np.fft.fftfreq(len(ys_with_zeros), d=(1- np.min(tau))/(n_sample))
+    
+    magnification_classical=np.abs(len(ys_with_zeros)*freqs/(2j*np.pi) *np.fft.ifft(ys_with_zeros))**2
+    
+    plt.plot(freqs,magnification_classical, '-')
+    
+    return magnification_classical
+
+    
 if __name__ == '__main__':
     
     #constants
@@ -246,15 +280,13 @@ if __name__ == '__main__':
     fig = plt.figure(dpi=100)
     left, bottom, width, height = 0.1, 0.1, 0.8, 0.8
     ax = fig.add_axes([left, bottom, width, height]) 
-    plt.scatter(x,y,color='r',s=4)
+    plt.scatter(x,y,color='r',s=100)
     cp = ax.contour(X, Y, tau,np.linspace(0,1,50),linewidths=0.6, extent=[-2,2,-2,2], colors='black')
     plt.gca().set_aspect('equal', adjustable='box')
     cp.ax.set_ylabel('y', fontsize=13)
     cp.ax.set_xlabel('x', fontsize=13)
     
     plt.title('Contour plot of time delay', fontsize=13)
-    #a=plt.colorbar(cset)
-    #a.set_label("time delay", fontsize=13)
     plt.savefig('contour_plot_with_points')
     plt.show()
 
@@ -267,5 +299,6 @@ if __name__ == '__main__':
     
     plt.plot(a,b, '.', color='k')
     #plt.xlim(0., 2)
-
+    xs,ys,n_sample=fitting(a,b)
+    magnification_classical=Fourier_transform_classical_part(ys,n_sample)
     
