@@ -117,7 +117,7 @@ def histogram(x,y, tau_critical):
             second_part.append(i)
         elif tau_saddle1 <i<tau_saddle2:
             third_part.append(i)
-        elif tau_saddle2<i<1.:
+        elif tau_saddle2<i<np.max(tau):
             fourth_part.append(i)
         else:
             pass
@@ -199,7 +199,7 @@ def fitting(a,b):
     
     n_sample=100
     s = UnivariateSpline(a, b, s=n_sample)
-    xs = np.linspace(np.min(tau), 1, 10)
+    xs = np.linspace(np.min(tau), np.max(tau), 10)
     ys = s(xs)
     plt.plot(a, b, 'o')
     plt.plot(xs, ys)
