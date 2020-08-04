@@ -76,7 +76,7 @@ def equations(p):
     
     return (der_r,der_theta)
 
-def amount_bins(crit_1, crit_2, step=0.001):
+def amount_bins(crit_1, crit_2, step=0.01):
     return (crit_2-crit_1)/step
 
 def plot_hist_parts(part,dx,n_bins):
@@ -125,7 +125,7 @@ def histogram(x,y, tau_critical):
     values_1, bins_1=plot_hist_parts(first_part,dx,int(amount_bins(np.min(tau),tau_min1)))
     values_2, bins_2=plot_hist_parts(second_part,dx,int(amount_bins(tau_min1,tau_saddle1)))
     values_3, bins_3=plot_hist_parts(third_part,dx,int(amount_bins(tau_saddle1,tau_saddle2)))
-    values_4, bins_4=plot_hist_parts(fourth_part,dx,int(amount_bins(tau_saddle2,1)))
+    values_4, bins_4=plot_hist_parts(fourth_part,dx,int(amount_bins(tau_saddle2,np.max(tau))))
     plt.show()
 
     return values_1, bins_1,values_2, bins_2,values_3, bins_3,values_4, bins_4,mu_saddle1,mu_saddle2,mu_min1,mu_min2,tau_saddle1,tau_saddle2,tau_min1,tau_min2
@@ -164,7 +164,7 @@ def remove_critical(x,y, tau_critical):
         
     for j,bin_val in enumerate(bins_1[:-1],1):
             b= contribute_min(mu_min2)+contribute_saddle(mu_saddle2,tau_min2,tau_saddle2,hist_time_step_1,j)+contribute_saddle(mu_saddle1,tau_min2,tau_saddle1,hist_time_step_1,j)
-            a_min1_min2.append(tau_min2+hist_time_step_1*j)
+            a_min1_min2.append(np.min(tau)+hist_time_step_1*j)
             b_min1_min2.append(b)
         
     #min1_saddle1
@@ -198,8 +198,8 @@ def remove_critical(x,y, tau_critical):
 def fitting(a,b):
     
     n_sample=100
-    s = UnivariateSpline(a, b, s=n_sample)
-    xs = np.linspace(np.min(tau), np.max(tau), 10)
+    s = UnivariateSpline(a, b, s=100)
+    xs = np.linspace(np.min(tau), np.max(tau), n_sample)
     ys = s(xs)
     plt.plot(a, b, 'o')
     plt.plot(xs, ys)
@@ -212,7 +212,7 @@ def Fourier_transform_classical_part(ys,n_sample):
     amount_zeros=1000
     zeros=np.zeros(amount_zeros)
     ys_with_zeros=np.concatenate((zeros,ys,zeros))
-    freqs = np.fft.fftfreq(len(ys_with_zeros), d=(1- np.min(tau))/(n_sample))
+    freqs = np.fft.fftfreq(len(ys_with_zeros), d=(np.max(tau)- np.min(tau))/(n_sample))
     
     magnification_classical=np.abs(len(ys_with_zeros)*freqs/(2j*np.pi) *np.fft.ifft(ys_with_zeros))**2
     
