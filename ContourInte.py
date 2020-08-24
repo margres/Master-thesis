@@ -24,6 +24,7 @@ import sys
 # Self-defined package
 sys.path.insert(0,os.path.realpath('..')) 
 from Images import TFunc, Images, saddleORmin
+from scipy.interpolate import UnivariateSpline
 
 class TreeClass(object):
     """
@@ -297,33 +298,28 @@ def FtHistFunc(xL12, lens_model, kappa=0, gamma=0, tlim=6., dt=1e-2):
         print('Split finished in', time.time()-time1)
 
 
-    return Tree.good_nodes, muI, tauI
+    return Tree.good_nodes, muI, tauI, nimages
 
 
 def contribute_min(mu_min):
     return 2*np.pi*np.sqrt(mu_min)
 
-def contribute_saddle(mu_saddle, tau_1, tau_saddle, step, j):
-    return -2 * np.sqrt(-mu_saddle)*np.log((np.abs(tau_1+ step*j - tau_saddle)))
+def contribute_saddle(bins, mu_saddle, tau_saddle, step, j):
+    return -2 * np.sqrt(-mu_saddle)*np.log((np.abs(np.min(bins)+step*j - tau_saddle)))
 
-def contribute_critical(bins,muI,tauI):
+def contribute_critical(bins,muI,tauI, nimages=4):
     
-    saddle_index, minimum_index=saddleORmin(muI, tauI, nimages)[0]
-    print(saddleORmin(muI, tauI, nimages)[0])
-    index_min1=1
-    index_min2=3
-    index_saddle1=2
-    index_saddle2=0
+    saddle_index, minimum_index=saddleORmin(muI, tauI, nimages)
     
-    mu_saddle1=muI[index_saddle1]
-    mu_saddle2=muI[index_saddle2]
-    mu_min1=muI[index_min1]
-    mu_min2=muI[index_min2]
+    mu_saddle1=muI[saddle_index[0]]
+    mu_saddle2=muI[saddle_index[1]]
+    mu_min1=muI[minimum_index[0]]
+    mu_min2=muI[minimum_index[1]]
     
-    tau_saddle1=tauI[index_saddle1]
-    tau_saddle2=tauI[index_saddle2]
-    tau_min1=tauI[index_min1]
-    tau_min2=tauI[index_min2]
+    tau_saddle1=tauI[saddle_index[0]]
+    tau_saddle2=tauI[saddle_index[1]]
+    tau_min1=tauI[minimum_index[0]]
+    tau_min2=tauI[minimum_index[1]]
     
     hist_time_step=np.diff(bins)[0]
     contrib=[]
@@ -331,32 +327,63 @@ def contribute_critical(bins,muI,tauI):
     bin_center = bins[:-1] + np.diff(bins) / 2
     
     for j,bin_val in enumerate(bin_center,1):
-       
-        if bin_val<=tau_min1:
-            b_tmp= contribute_min(mu_min2)+contribute_saddle(mu_saddle2,tau_min2,tau_saddle2,hist_time_step,j)+contribute_saddle(mu_saddle1,tau_min2,tau_saddle1,hist_time_step,j) 
+    #min1_min2   
+        if bin_val<tau_min2:
+            b_tmp= contribute_min(mu_min1)+contribute_saddle(bins,mu_saddle2,tau_saddle2,hist_time_step,j)+contribute_saddle(bins,mu_saddle1,tau_saddle1,hist_time_step,j) 
         
     #min1_saddle1
-        elif tau_min1<bin_val<=tau_saddle1:
- 
-            b_tmp=contribute_min(mu_min2) +contribute_min(mu_min1)+contribute_saddle(mu_saddle2,tau_min1,tau_saddle2,hist_time_step,j)+contribute_saddle(mu_saddle1,tau_min1,tau_saddle1,hist_time_step,j)
+        elif tau_min2<=bin_val<tau_saddle1:
+            
+            b_tmp=contribute_min(mu_min2) +contribute_min(mu_min1)+contribute_saddle(bins,mu_saddle2,tau_saddle2,hist_time_step,j)+contribute_saddle(bins,mu_saddle1,tau_saddle1,hist_time_step,j)
               
     #saddle1_saddle2
-        elif tau_saddle1 <bin_val<tau_saddle2:
+        elif tau_saddle1 <=bin_val<tau_saddle2:
 
-            b_tmp= contribute_min(mu_min2) +contribute_min(mu_min1)+ contribute_saddle(mu_saddle2,tau_saddle1,tau_saddle2,hist_time_step,j)+contribute_saddle(mu_saddle1,tau_saddle1,tau_saddle1,hist_time_step,j)
+            b_tmp= contribute_min(mu_min2) +contribute_min(mu_min1)+ contribute_saddle(bins,mu_saddle2,tau_saddle2,hist_time_step,j)+contribute_saddle(bins,mu_saddle1,tau_saddle1,hist_time_step,j)
                   
     #saddle2--
         elif bin_val>=tau_saddle2:
    
-            b_tmp=contribute_min(mu_min2)+ contribute_min(mu_min1)+contribute_saddle(mu_saddle1,tau_saddle2,tau_saddle1,hist_time_step,j)+contribute_saddle(mu_saddle2,tau_saddle2,tau_saddle2,hist_time_step,j)     
-        
+            b_tmp=contribute_min(mu_min2)+ contribute_min(mu_min1)+contribute_saddle(bins,mu_saddle1,tau_saddle1,hist_time_step,j)+contribute_saddle(bins,mu_saddle2,tau_saddle2,hist_time_step,j)     
+                
         contrib.append(b_tmp)
         
-        
-        
+        #print(j*hist_time_step)
+    #print(len(bins), np.min(bins), np.max(bins))
+    #print(len(contrib))
+                
     return bin_center, contrib
 
+def fit_wo_critical(a,b, bins):
+    
+    s = UnivariateSpline(a, b, s=50)
+    n_sample=100
+    xs = np.linspace(np.min(bins), np.max(bins), n_sample)
+    #print(np.max(tau))
+    ys = s(xs)
+    
+    return xs,ys
 
+
+def Fourier_transform_classical_part(xs,ys,bins,n_sample=100):
+    '''
+    It returns the FT of the ys values. 
+    '''
+    
+    amount_zeros=1000
+    zeros=np.zeros(amount_zeros)
+    ys_with_zeros=np.concatenate((zeros,ys,zeros))
+    freqs = np.fft.fftfreq(len(ys_with_zeros), d=(np.max(xs)- np.min(xs))/(n_sample))
+    c_omega=1j*freqs/(2*np.pi)
+    fourier_transform=np.fft.ifft(ys_with_zeros) #*len(ys_with_zeros)
+    
+    remaining= np.abs(1/(2*np.pi)*(np.exp(1j*freqs*xs[-1])*ys[-1]-np.exp(1j*freqs*xs[-1])*ys[0]) -c_omega* fourier_transform)**2
+
+    
+    return freqs,remaining
+
+#def contribute_saddle():
+    
 
 
 if __name__ == '__main__':
@@ -376,28 +403,43 @@ if __name__ == '__main__':
     # accuracy
     tlim = 0.5
     dt = 1e-3
+    
+    
     '''
     print('start running...')
     start = time.time()
-    good_nodes,muI, tauI = FtHistFunc([xL1, xL2], lens_model, kappa, gamma, tlim, dt)
-    # print(good_nodes)
+    good_nodes,muI, tauI, nimages = FtHistFunc([xL1, xL2], lens_model, kappa, gamma, tlim, dt)
+    
     print('finished in', time.time()-start)
-    '''
-    np.save('good_nodes.npy', good_nodes)
+    
+    
+    good_nodes.to_pickle('good_nodes.pkl') 
     np.save('muI.npy', muI)
     np.save('tauI.npy', tauI)
+    '''
     
-    #good_nodes = np.load('good_nodes.npy')
+    good_nodes = pd.read_pickle('good_nodes.pkl')
+    muI = np.load('muI.npy')
+    tauI = np.load('tauI.npy')
+    
     
     N_z = int((np.amax(good_nodes['tau'].values)-np.amin(good_nodes['tau'].values))/dt)
     values, bins, _ = plt.hist(good_nodes['tau'].values, N_z, color='gray', weights=good_nodes['weights'].values/dt)
     
-    #saving
-    #np.save('good_nodes.npy', good_nodes['tau'].values)
-    #np.save('value.npy', value)
     #plt.savefig('./test_histT.png',dpi=300)
     
     bin_center, contrib = contribute_critical(bins,muI,tauI)
+    
+    #print(contrib)
     plt.plot(bin_center,values-contrib)
+    
+    
+    xs, ys=fit_wo_critical(bin_center,values-contrib, bins)
+    plt.plot(xs, ys)
+    plt.show()
+    
+    freqs,magnification_classical=Fourier_transform_classical_part(xs,ys,bins)
+    plt.plot(freqs,magnification_classical, '-')
+    plt.show()
 
     

@@ -273,8 +273,6 @@ def saddleORmin(muI, tauI, nimages):
     
     #np.save('crit_matrix.npy',crit_matrix)
     
-    print(crit_matrix)
-    
     for i in range(int(nimages/2)):
         minimum_index.append(int(crit_matrix[np.where(crit_matrix[:,2]=='m')[0][i]][0]))
         saddle_index.append(int(crit_matrix[np.where(crit_matrix[:,2]=='s')[0][i]][0]))
