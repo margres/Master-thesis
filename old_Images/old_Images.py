@@ -2,7 +2,7 @@
 # @Author: lshuns
 # @Date:   2020-08-03 16:53:12
 # @Last Modified by:   lshuns
-# @Last Modified time: 2020-08-29 16:08:38
+# @Last Modified time: 2020-08-04 15:53:53
 
 ### solve the lens equation
 
@@ -20,8 +20,10 @@ import scipy.optimize as op
 def TFunc(x12, xL12, lens_model, kappa=0, gamma=0):
     """
     the time-delay function (Fermat potential)
+
     Parameters
     ----------
+
     x12: a list of 1-d numpy arrays [x1, x2]
         Light impact position, coordinates in the lens plane.
     xL12: a list of 1-d numpy arrays [xL1, xL2]
@@ -53,8 +55,10 @@ def TFunc(x12, xL12, lens_model, kappa=0, gamma=0):
 def dTFunc(x12, xL12, lens_model, kappa=0, gamma=0):
     """
     the first derivative of time-delay function (Fermat potential)
+
     Parameters
     ----------
+
     x12: a list of 1-d numpy arrays [x1, x2]
         Light impact position, coordinates in the lens plane.
     xL12: a list of 1-d numpy arrays [xL1, xL2]
@@ -90,8 +94,10 @@ def ThetaOrRFunc(theta_t, xL12, lens_model, kappa=0, gamma=0, thetaORr='theta'):
     """
     the theta part or the r part of the lens equation
         Note: dx1 = r_t*cosTheta_t, dx2 = r_t*sinTheta_t
+
     Parameters
     ----------
+
     theta_t: 1-d numpy arrays
         Angular coordinate of dx(=xI-xL) in lens plane.
     xL12: a list of 1-d numpy arrays [xL1, xL2]
@@ -133,8 +139,10 @@ def ThetaOrRFunc(theta_t, xL12, lens_model, kappa=0, gamma=0, thetaORr='theta'):
 def muFunc(x12, xL12, lens_model, kappa=0, gamma=0):
     """
     the magnification factor
+
     Parameters
     ----------
+
     x12: a list of 1-d numpy arrays [x1, x2]
         Light impact position, coordinates in the lens plane.
     xL12: a list of 1-d numpy arrays [xL1, xL2]
@@ -169,25 +177,13 @@ def muFunc(x12, xL12, lens_model, kappa=0, gamma=0):
     # magnification
     mu = 1./(j11*j22-j12*j12)
 
-    # trace (for image type)
-    tr = j11 + j22
-
-    # image type
-    flag_min = (mu>0) & (tr>0)
-    flag_max = (mu>0) & (tr<0)
-    flag_saddle = (mu<0)
-    ##
-    Itype = np.empty(len(mu), dtype=object)
-    Itype[flag_min] = 'min'
-    Itype[flag_max] = 'max'
-    Itype[flag_saddle] = 'saddle'
-
-    return mu, Itype
+    return mu
 
 
 def Images(xL12, lens_model, kappa=0, gamma=0, return_mu=False, return_T=False):
     """
     Solving the lens equation
+
     Parameters
     ----------
     xL12: a list of 1-d numpy arrays [xL1, xL2]
@@ -242,10 +238,9 @@ def Images(xL12, lens_model, kappa=0, gamma=0, return_mu=False, return_T=False):
 
     # +++++++++++++ magnification 
     if return_mu:
-        mag, Itype = muFunc(xI12, xL12, lens_model, kappa, gamma)
+        mag = muFunc(xI12, xL12, lens_model, kappa, gamma)
     else:
         mag = None
-        Itype = None
 
     # +++++++++++++ time delay
     if return_T:
@@ -253,7 +248,38 @@ def Images(xL12, lens_model, kappa=0, gamma=0, return_mu=False, return_T=False):
     else:
         tau = None
 
-    return nimages, xI12, mag, tau, Itype
+    return (nimages, xI12, mag, tau)
+
+
+def saddleORmin(muI, tauI, nimages):
+    
+    saddle_index=[]
+    minimum_index=[]
+    
+    crit_matrix=np.zeros((int(nimages),3),dtype='U4')
+    
+    for i in range(nimages):  
+        
+        crit_matrix[i,0]=i
+        
+        crit_matrix[i,1]=tauI[i]  
+        
+        if muI[i]<0:
+            crit_matrix[i,2]='s'
+        else:
+            crit_matrix[i,2]='m'
+    
+    crit_matrix=crit_matrix[crit_matrix[:,1].argsort()]
+    
+    #np.save('crit_matrix.npy',crit_matrix)
+    
+    for i in range(int(nimages/2)):
+        minimum_index.append(int(crit_matrix[np.where(crit_matrix[:,2]=='m')[0][i]][0]))
+        saddle_index.append(int(crit_matrix[np.where(crit_matrix[:,2]=='s')[0][i]][0]))
+                  
+    return (saddle_index, minimum_index)
+    
+            
 
 if __name__ == '__main__':
 
@@ -287,6 +313,9 @@ if __name__ == '__main__':
     print('magnification', muI)
     print('time delay', tauI)
 
+    sorted_critical = saddleORmin(muI, tauI, nimages)
+    print(sorted_critical)
+    
     #contour plot
     fig = plt.figure(dpi=100)
     left, bottom, width, height = 0.1, 0.1, 0.8, 0.8

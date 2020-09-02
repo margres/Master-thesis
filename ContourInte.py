@@ -23,7 +23,8 @@ import os
 import sys
 # Self-defined package
 sys.path.insert(0,os.path.realpath('..')) 
-from Images import TFunc, Images, saddleORmin
+from old_Images import TFunc, Images, saddleORmin
+from Fouriertrans import F_d,FT_clas
 from scipy.interpolate import UnivariateSpline
 
 class TreeClass(object):
@@ -356,35 +357,21 @@ def contribute_critical(bins,muI,tauI, nimages=4):
 
 def fit_wo_critical(a,b, bins):
     
-    s = UnivariateSpline(a, b, s=50)
+    '''
+    fitting of the smoothed curve
+    '''
+    
+    s = UnivariateSpline(a, b, s=100)
     n_sample=100
     xs = np.linspace(np.min(bins), np.max(bins), n_sample)
     #print(np.max(tau))
     ys = s(xs)
     
-    return xs,ys
+    return xs,ys, n_sample
 
 
-def Fourier_transform_classical_part(xs,ys,bins,n_sample=100):
-    '''
-    It returns the FT of the ys values. 
-    '''
-    
-    amount_zeros=1000
-    zeros=np.zeros(amount_zeros)
-    ys_with_zeros=np.concatenate((zeros,ys,zeros))
-    freqs = np.fft.fftfreq(len(ys_with_zeros), d=(np.max(xs)- np.min(xs))/(n_sample))
-    c_omega=1j*freqs/(2*np.pi)
-    fourier_transform=np.fft.ifft(ys_with_zeros) #*len(ys_with_zeros)
-    
-    remaining= np.abs(1/(2*np.pi)*(np.exp(1j*freqs*xs[-1])*ys[-1]-np.exp(1j*freqs*xs[-1])*ys[0]) -c_omega* fourier_transform)**2
-
-    
-    return freqs,remaining
-
-#def contribute_saddle():
-    
-
+def magnification(F):
+    return np.abs(F)**2
 
 if __name__ == '__main__':
 
@@ -425,21 +412,45 @@ if __name__ == '__main__':
     
     N_z = int((np.amax(good_nodes['tau'].values)-np.amin(good_nodes['tau'].values))/dt)
     values, bins, _ = plt.hist(good_nodes['tau'].values, N_z, color='gray', weights=good_nodes['weights'].values/dt)
-    
+    plt.close()
     #plt.savefig('./test_histT.png',dpi=300)
     
     bin_center, contrib = contribute_critical(bins,muI,tauI)
     
     #print(contrib)
     plt.plot(bin_center,values-contrib)
+    plt.xlabel('time')
+    plt.ylabel('F tilde')
     
     
-    xs, ys=fit_wo_critical(bin_center,values-contrib, bins)
+    xs, ys,n_sample=fit_wo_critical(bin_center,values-contrib, bins)
     plt.plot(xs, ys)
     plt.show()
     
-    freqs,magnification_classical=Fourier_transform_classical_part(xs,ys,bins)
-    plt.plot(freqs,magnification_classical, '-')
+   
+    omega,F_diff=F_d(xs,ys)
+    F_clas=np.zeros((4,len(omega)), dtype="complex_")
+    
+    np.save('xs.npy', xs)
+    np.save('ys.npy', ys)
+    
+    for i,(m,t) in enumerate(zip(muI,tauI)):
+        #print(m,t)
+        F_clas[i,:]=FT_clas(omega,t,m, xs, ys)
+        #print(F_crit[i,:])
+    F_clas=np.sum(F_clas,axis=0)
+    
+    
+    pos_indices=np.where(omega<0)[0][1]-1
+    plt.plot(omega[:pos_indices],magnification(F_diff[:pos_indices]), label='F diffraction' )
+    #plt.plot(omega[:pos_indices],magnification(F_clas[:pos_indices]), label='F semi-classical')
+    plt.xlabel('wavelenght')
+    plt.ylabel('|F|^2 amplification factor')
+    plt.title(str(n_sample)+' sample points')
+    #plt.plot(omega,magnification(F_clas), label='F semi-classical')
+    plt.legend()
+    plt.savefig('./F_d_fit_'+str(n_sample)+'points.png',dpi=300)
+    plt.legend()
     plt.show()
 
     

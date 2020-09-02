@@ -6,4 +6,4 @@
 
 ### Module dealing with lens equation (to get the image positions & magnification & time delay)
 
-from Images.Images import TFunc, Images, dTFunc
+from Images.Images import TFunc, Images, dTFunc, saddleORmin
