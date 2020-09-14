@@ -151,6 +151,11 @@ def GpFunc(xlist, w, y, model_lens):
 
     if model_lens == 'SIS':
         gpx = w * (2.*xlist - 1.) / (1. - xlist)**3.
+    
+    #if model_lens == 'point':
+    #g
+    #   g = 0.5*(x1**2.*(1) + x2**2.
+   #tau -= np.log(np.sqrt(dx1**2.+dx2**2))
 
     return gpx
 

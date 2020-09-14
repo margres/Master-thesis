@@ -45,7 +45,9 @@ def TFunc(x12, xL12, lens_model, kappa=0, gamma=0):
 
     # deflection potential
     if lens_model == 'point':
-        tau -= np.log(np.sqrt(dx1**2.+dx2**2))
+        tau -= np.log(np.sqrt(dx1**2.+dx2**2.))
+    elif lens_model== 'SIS':
+        tau -= np.sqrt(dx1**2.+dx2**2.)
     
     return tau
 
@@ -78,11 +80,17 @@ def dTFunc(x12, xL12, lens_model, kappa=0, gamma=0):
     dx2 = np.absolute(x2-xL12[1])
 
     # deflection potential
-    if lens_model == 'point':
+    if lens_model == 'point'  :
         dx12dx22 = dx1**2.+dx2**2
         dtaudx1 -= dx1/dx12dx22
-        dtaudx2 -= dx2/dx12dx22
+        dtaudx1 -= dx2/dx12dx22
 
+    elif lens_model == 'SIS':
+        dx12dx22 = np.sqrt(dx1**2+dx2**2)
+        dtaudx1 -= dx1/dx12dx22
+        dtaudx1 -= dx2/dx12dx22
+        
+        
     return dtaudx1, dtaudx2
 
 
@@ -128,6 +136,20 @@ def ThetaOrRFunc(theta_t, xL12, lens_model, kappa=0, gamma=0, thetaORr='theta'):
             return rt
         else:
             raise Exception('Unsupported thetaORr value! using either r or theta!')
+            
+    elif lens_model=='SIS':
+        cosTheta = np.cos(theta_t)
+        sinTheta = np.sin(theta_t)
+        #
+        rt=np.sqrt(xL1**2+xL2**2)
+        #
+        if thetaORr == 'theta':
+            return xL1*sinTheta-xL2*cosTheta
+        elif thetaORr == 'r':
+            return rt
+        else:
+            raise Exception('Unsupported thetaORr value! using either r or theta!')
+        
 
 
 def muFunc(x12, xL12, lens_model, kappa=0, gamma=0):
@@ -161,6 +183,16 @@ def muFunc(x12, xL12, lens_model, kappa=0, gamma=0):
         dpsid22 = -dpsid11
         # d^2psi/dx1dx2
         dpsid12 = -2*dx1*dx2/dx12pdx22_2
+        
+    elif lens_model == 'SIS':
+        dx12pdx22_32 = (dx1**2.+ dx2**2.)**(3/2)
+        # d^2psi/dx1^2
+        dpsid11 = dx2**2/dx12pdx22_32
+        # d^2psi/dx2^2
+        dpsid22 = dx1**2/dx12pdx22_32
+        # d^2psi/dx1dx2
+        dpsid12 = -(dx1*dx2)//dx12pdx22_32
+        
 
     # Jacobian matrix
     j11 = 1. - kappa - gamma - dpsid11
@@ -203,9 +235,8 @@ def Images(xL12, lens_model, kappa=0, gamma=0, return_mu=False, return_T=False):
     return_T: bool, (optional, default=False)
         Return the time delay (or not).
     """
-
-    # +++++++++++++ solve the lens equation
-
+    
+    
     # solve the theta-function
     N_theta_t = 100
     d_theta_t = 1e-3
@@ -214,6 +245,9 @@ def Images(xL12, lens_model, kappa=0, gamma=0, return_mu=False, return_T=False):
 
     theta_t_res = []
 
+    # +++++++++++++ solve the lens equation
+    #if gamma!=0 and kappa!=0:
+    
     for i in range(len(node_theta_t)-1):
 
         theta_t = np.linspace(node_theta_t[i]+d_theta_t, node_theta_t[i+1]-d_theta_t, N_theta_t)
@@ -230,10 +264,13 @@ def Images(xL12, lens_model, kappa=0, gamma=0, return_mu=False, return_T=False):
     # corresponding r_t
     theta_t_res = np.array(theta_t_res)
     r_t = ThetaOrRFunc(theta_t_res, xL12, lens_model, kappa, gamma, 'r')
+    
+    
     # true solutions
     true_flag = r_t>1e-5
     theta_t_res = theta_t_res[true_flag]
-    r_t = r_t[true_flag]
+    if not isinstance(r_t, int):
+        r_t = r_t[true_flag]
     nimages = len(theta_t_res)
     # to x, y
     dx1 = r_t*np.cos(theta_t_res)
@@ -260,18 +297,19 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
     # lens
-    lens_model = 'point'
-    xL1 = 0.1
-    xL2 = 0.1
+    #lens_model = 'point'
+    lens_model= 'SIS'
+    xL1 = 0
+    xL2 = 0.5
 
     # external shear
     kappa = 0
-    gamma = 0.2
+    gamma = 0
 
     n_steps=800
     n_bins=800
-    xmin=-1.5
-    xmax=1.5
+    xmin=-3
+    xmax=3
 
     x_range=xmax-xmin
     x_lin=np.linspace(xmin,xmax,n_steps)
@@ -281,7 +319,8 @@ if __name__ == '__main__':
     
     tau = TFunc([X,Y], [xL1, xL2], lens_model, kappa, gamma)
     
-    nimages, xI12, muI, tauI = Images([xL1, xL2], lens_model, kappa, gamma, return_mu=True, return_T=True) 
+    
+    nimages, xI12, muI, tauI,Itype = Images([xL1, xL2], lens_model, kappa, gamma, return_mu=False, return_T=True) 
     print('number of images', nimages)
     print('positions', xI12)
     print('magnification', muI)
@@ -295,6 +334,8 @@ if __name__ == '__main__':
     plt.scatter(xI12[0], xI12[1], color='r', s=4)
     # contour
     cp = ax.contour(X, Y, tau, np.linspace(0,1,50), linewidths=0.6, extent=[-2,2,-2,2], colors='black')
+    #plt.xlim(-0.15,0.15)
+    #plt.ylim(-0.15,0.15)
     plt.gca().set_aspect('equal', adjustable='box')
     cp.ax.set_ylabel('y', fontsize=13)
     cp.ax.set_xlabel('x', fontsize=13)

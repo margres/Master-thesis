@@ -25,11 +25,11 @@ def FFT(xs,ys):
     It returns the FT of the ys values. 
     '''
     
-    amount_zeros=1000
-    zeros=np.zeros(amount_zeros)
-    ys=np.concatenate((zeros,ys,zeros))
+    #amount_zeros=1000
+    #zeros=np.zeros(amount_zeros)
+    #ys=np.concatenate((zeros,ys,zeros))
     omega = np.fft.fftfreq(len(ys),d=xs[1]-xs[0])
-    FT=np.fft.ifft(ys, norm='ortho')
+    FT=np.fft.ifft(ys, norm='ortho')/(len(ys))
     
     return omega,FT
 

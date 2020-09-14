@@ -262,43 +262,55 @@ def FtHistFunc(xL12, lens_model, kappa=0, gamma=0, tlim=6., dt=1e-2):
     N_bins = int((tlim-tImin)/dt)
     Ft_list, bin_edges = np.histogram(Tree.good_nodes['tau'].values, N_bins, weights=Tree.good_nodes['weights'].values/dt)
     tau_list = (bin_edges[1:]+bin_edges[:-1])/2.
-
+    plt.plot(tau_list,Ft_list)
+    
     # avoid edge effects
     tau_list = tau_list[:-10]
     Ft_list = Ft_list[:-10]
 
+    tau_extension,Ft_extension, n_points=fit_Func(tau_list,Ft_list,'ft')
+    plt.plot(tau_extension,Ft_extension)
+    plt.xlim(0,2)
+    plt.show()
+    
+    index_extension=np.where(tau_extension>np.max(tau_list))[0][0]
+    tau_list_extended=np.append(tau_list,tau_extension[index_extension:])
+    Ft_list_extended=np.append(Ft_list,Ft_extension[index_extension:])
+    plt.plot(tau_list_extended, Ft_list_extended)
+    plt.xlim(0,2)
+    plt.show()
+       
     # calculate signular part
-    Ftc = FtSingularFunc(images_info, tau_list)
+    Ftc = FtSingularFunc(images_info, tau_list_extended)
 
     # remove signular part
-    Ftd = Ft_list - Ftc
+    Ftd = Ft_list_extended - Ftc
 
-    return tau_list, Ftd, Ft_list, muI,tauI
+    return tau_list_extended, Ftd, Ft_list_extended, muI,tauI
 
-def fit_Ftdl(a,b):
+def fit_Func(a,b,funct):
     
     '''
     fitting of the smoothed curve
     '''
     
-    s = UnivariateSpline(a, b,s=500)
-    n_sample=500
-    xs = np.linspace(np.min(a), np.max(a), n_sample)
-    
-    ys = s(xs)
-    
-    return xs,ys, n_sample
-
-def fit_Ftd(a,b):
-    
-    '''
-    fitting of the smoothed curve
-    '''
-    z = np.polyfit(a, b, 50)
+    if funct=='ftd': 
+        fitting_order=50
+        begin_fit=0
+        n_sample=len(a)
+        xs = np.linspace(np.min(a), np.max(a), n_sample)
+        
+    elif funct=='ft': #histogram
+        fitting_order=1
+        n_sample=200
+        begin_fit=np.where(a>np.max(a)-0.2)[0][0] 
+        xs = np.linspace(a[begin_fit],2, n_sample)
+        
+    z = np.polyfit(a[begin_fit:], b[begin_fit:], fitting_order)
     p = np.poly1d(z)
-    n_sample=len(a)
-    xs = np.linspace(np.min(a), np.max(a), n_sample)
     ys=p(xs)
+    
+    #index_y_zero=np.where(predicted<=0)[0][0]
     
     return xs,ys, n_sample
 
@@ -324,25 +336,26 @@ if __name__ == '__main__':
     # accuracy
     tlim = 0.5
     dt = 1e-3
-    '''
+    
     print('start running...')
     start = time.time()
     tau_list, Ftd, Ft_list, muI, tauI = FtHistFunc([xL1, xL2], lens_model, kappa, gamma, tlim, dt)
     # print(good_nodes)
-    
+    '''
     np.save('muI.npy', muI)
     np.save('tau_list.npy', tau_list)
     np.save('tauI.npy', tauI)
     np.save('Ftd.npy', Ftd)
     np.save('Ft_list.npy', Ft_list)
     print('finished in', time.time()-start)
-    '''
+    
     
     muI = np.load('muI.npy')
     tauI = np.load('tauI.npy')
     tau_list= np.load('tau_list.npy')
     Ftd = np.load('Ftd.npy')
     Ft_list= np.load('Ft_list.npy')
+    '''
     
 
     outfile = './plot/test_Ft.png'
@@ -354,7 +367,7 @@ if __name__ == '__main__':
     #print('Plot saved to', outfile)
 
     outfile = './plot/test_Ftd.png'
-    xs, ys,n_sample=fit_Ftd(tau_list,Ftd)
+    xs, ys,n_sample=fit_Func(tau_list,Ftd,'ftd')
     
     np.save('xs.npy', xs)
     np.save('ys.npy', ys)
@@ -391,13 +404,11 @@ if __name__ == '__main__':
     plt.plot(omega[:pos_indices], magnification(F_clas[:pos_indices]+F_diff[:pos_indices]), label='F full')
     plt.xlabel('frequency')
     plt.ylabel('|F|^2 amplification factor')
-    plt.title(str(n_sample)+' sample points')
+    #plt.title(str(n_sample)+' sample points')
     #plt.plot(omega,magnification(F_clas), label='F semi-classical')
     plt.legend()
-    plt.xlim(0,150)
+    #plt.xlim(0,150)
+    plt.savefig('./magnification_factor_extension_2.png',dpi=300)
     plt.show()
-    plt.savefig('./magnification_factor.png',dpi=300)
-    
-    #plt.plot(omega[:pos_indices], magnification(F_diff[:pos_indices]), ,omega[:pos_indices], magnification(F_clas[:pos_indices]), label='F semi-classical')
-   #plt.xlim(0,150)
+
     
