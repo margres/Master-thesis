@@ -198,7 +198,7 @@ def muFunc(x12, xL12, lens_model, kappa=0, gamma=0):
         # d^2psi/dx2^2
         dpsid22 = dx1**2/dx12pdx22_32
         # d^2psi/dx1dx2
-        dpsid12 = -(dx1*dx2)/dx12pdx22_32
+        dpsid12 = -(dx1*dx2)//dx12pdx22_32
         
 
     # Jacobian matrix

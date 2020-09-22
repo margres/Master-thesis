@@ -185,7 +185,7 @@ def WFunc(x, w, y, model_lens):
     # model-dependant exponential factor
     if model_lens == 'SIS':
         gx = w*(0.5*x**2. - x + y + 0.5)
-
+    
     # cos + i*sin for complex exponential part
     cosv = np.cos(gx)
     sinv = np.sin(gx)

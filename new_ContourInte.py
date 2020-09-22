@@ -267,7 +267,8 @@ def FtHistFunc(xL12, lens_model, kappa=0, gamma=0, tlim=6., dt=1e-2):
     # avoid edge effects
     tau_list = tau_list[:-10]
     Ft_list = Ft_list[:-10]
-
+    
+    '''
     tau_extension,Ft_extension, n_points=fit_Func(tau_list,Ft_list,'ft')
     plt.plot(tau_extension,Ft_extension)
     plt.xlim(0,2)
@@ -279,14 +280,14 @@ def FtHistFunc(xL12, lens_model, kappa=0, gamma=0, tlim=6., dt=1e-2):
     plt.plot(tau_list_extended, Ft_list_extended)
     plt.xlim(0,2)
     plt.show()
-       
+    '''   
     # calculate signular part
-    Ftc = FtSingularFunc(images_info, tau_list_extended)
+    Ftc = FtSingularFunc(images_info, tau_list)
 
     # remove signular part
-    Ftd = Ft_list_extended - Ftc
+    Ftd = Ft_list - Ftc
 
-    return tau_list_extended, Ftd, Ft_list_extended, muI,tauI
+    return tau_list, Ftd, Ft_list, muI,tauI
 
 def fit_Func(a,b,funct):
     
@@ -300,11 +301,11 @@ def fit_Func(a,b,funct):
         n_sample=len(a)
         xs = np.linspace(np.min(a), np.max(a), n_sample)
         
-    elif funct=='ft': #histogram
+    elif funct=='ftc': 
         fitting_order=1
-        n_sample=200
+        n_sample=100
         begin_fit=np.where(a>np.max(a)-0.2)[0][0] 
-        xs = np.linspace(a[begin_fit],2, n_sample)
+        xs = np.linspace(a[begin_fit],np.max(a)+0.1, n_sample)
         
     z = np.polyfit(a[begin_fit:], b[begin_fit:], fitting_order)
     p = np.poly1d(z)
@@ -318,11 +319,23 @@ def fit_Func(a,b,funct):
 def magnification(F):
     return np.abs(F)**2
 
+def extend_Fc(xs,ys):
+    
+    xs_extension,ys_extension, n_points=fit_Func(xs,ys,'ftc')
+    index_extension=np.where(xs_extension>np.max(xs))[0][0]
+    xs_extended=np.append(xs,xs_extension[index_extension:])
+    ys_extended=np.append(ys,ys_extension[index_extension:])
+
+    
+    return xs_extended,ys_extended
+
 
 if __name__ == '__main__':
 
     import matplotlib.pyplot as plt
     import time 
+    
+
     
     # lens
     lens_model = 'point'
@@ -337,10 +350,12 @@ if __name__ == '__main__':
     tlim = 0.5
     dt = 1e-3
     
+ 
     print('start running...')
     start = time.time()
     tau_list, Ftd, Ft_list, muI, tauI = FtHistFunc([xL1, xL2], lens_model, kappa, gamma, tlim, dt)
     # print(good_nodes)
+    
     '''
     np.save('muI.npy', muI)
     np.save('tau_list.npy', tau_list)
@@ -357,7 +372,6 @@ if __name__ == '__main__':
     Ft_list= np.load('Ft_list.npy')
     '''
     
-
     outfile = './plot/test_Ft.png'
     plt.plot(tau_list, Ft_list)
     plt.xlabel('time')
@@ -368,7 +382,7 @@ if __name__ == '__main__':
 
     outfile = './plot/test_Ftd.png'
     xs, ys,n_sample=fit_Func(tau_list,Ftd,'ftd')
-    
+
     np.save('xs.npy', xs)
     np.save('ys.npy', ys)
     
@@ -382,11 +396,17 @@ if __name__ == '__main__':
     plt.show()
     print('Plot saved to', outfile)
     
-        
-    xs=tau_list
-    ys=np.ones((len(xs)))
+    xs_extended,ys_extended=extend_Fc(xs,ys)
+    plt.plot(xs_extended,ys_extended)
+    plt.savefig('./Fc_extension_2.png',dpi=300)
+    plt.show()
     
-    omega,F_diff=F_d(xs,ys)
+    #uncomment this if you want to extend at higher times    
+    #xs= xs_extended
+    #ys= ys_extended
+    
+    omega,F_diff=F_d(xs[10:],ys[10:])
+  
     F_clas=np.zeros((4,len(omega)), dtype="complex_")
 
     
@@ -405,10 +425,9 @@ if __name__ == '__main__':
     plt.xlabel('frequency')
     plt.ylabel('|F|^2 amplification factor')
     #plt.title(str(n_sample)+' sample points')
-    #plt.plot(omega,magnification(F_clas), label='F semi-classical')
     plt.legend()
     #plt.xlim(0,150)
-    plt.savefig('./magnification_factor_extension_2.png',dpi=300)
+    plt.savefig('./magnification_factor_extension_1.png',dpi=300)
     plt.show()
 
     

@@ -21,6 +21,7 @@ ys -> y-axis coordinates from the fit, F
 import numpy as np  
 
 def FFT(xs,ys):
+    
     '''
     It returns the FT of the ys values. 
     '''
@@ -35,6 +36,7 @@ def FFT(xs,ys):
 
 
 def FT_clas(omega,T,mu, xs, ys):
+    
     '''
     semi-calssical analytical contribution, eq. 34 and 39 -- Ulmer's paper 
 
@@ -46,18 +48,18 @@ def FT_clas(omega,T,mu, xs, ys):
     
 
 def F_d(xs,ys):
+    
     '''
     eq. 5.6  
     '''
     
     omega,FT=FFT(xs,ys)
     
-    c_omega=omega*1j/(np.pi)
+    c_omega=omega/(2j*np.pi)
      
     first_term= np.exp(1j*omega*xs[-1])*ys[-1]-np.exp(1j*omega*xs[0])*ys[0]
     
     return omega,( first_term - 1j*omega*FT )/c_omega
-
 
 
 
