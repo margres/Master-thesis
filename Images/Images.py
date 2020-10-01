@@ -83,12 +83,12 @@ def dTFunc(x12, xL12, lens_model, kappa=0, gamma=0):
     if lens_model == 'point'  :
         dx12dx22 = dx1**2.+dx2**2
         dtaudx1 -= dx1/dx12dx22
-        dtaudx1 -= dx2/dx12dx22
+        dtaudx2 -= dx2/dx12dx22
 
     elif lens_model == 'SIS':
         dx12dx22 = np.sqrt(dx1**2+dx2**2)
         dtaudx1 -= dx1/dx12dx22
-        dtaudx1 -= dx2/dx12dx22
+        dtaudx2 -= dx2/dx12dx22
         
         
     return dtaudx1, dtaudx2
@@ -241,48 +241,82 @@ def Images(xL12, lens_model, kappa=0, gamma=0, return_mu=False, return_T=False):
         Return the maginification (or not).
     return_T: bool, (optional, default=False)
         Return the time delay (or not).
+        
     """
     
-    
-    # solve the theta-function
-    N_theta_t = 100
-    d_theta_t = 1e-3
-
-    node_theta_t = np.array([0, 0.5*np.pi, np.pi, 1.5*np.pi, 2.*np.pi])
-
-    theta_t_res = []
-
     # +++++++++++++ solve the lens equation
-    #if gamma!=0 and kappa!=0:
+    # 1D problem
+    if gamma==0:
+        ## in the same line as the lens
+        theta = np.arctan(xL12[1]/xL12[0]) # returns [0, pi/2]
+        rL = (xL12[0]**2 + xL12[1]**2)**0.5
+        
+        ## solve r
+        if lens_model == 'point':
+            ## two solutions
+            r_t = np.array([0.5 * (-rL + (rL**2 + 4./(1-kappa))**0.5), 
+                            0.5 * (-rL - (rL**2 + 4./(1-kappa))**0.5)])
+            
+            nimages = 2
+            ## to x, y
+            dx1 = r_t*np.cos(theta)
+            dx2 = r_t*np.sin(theta)
+            xI12 = [dx1 + xL12[0], dx2 + xL12[1]]
+            
+        elif  lens_model == 'SIS':
+            r_t = np.array([1/(1-kappa),-1/(1-kappa)])                
+            nimages = 2
+            ## to x, y
+            dx1 = r_t*np.cos(theta)
+            dx2 = r_t*np.sin(theta)
+            xI12 = [dx1, dx2]
+                
+        
+            
+            
+    # 2D problem
+    else:
     
-    for i in range(len(node_theta_t)-1):
-
-        theta_t = np.linspace(node_theta_t[i]+d_theta_t, node_theta_t[i+1]-d_theta_t, N_theta_t)
-        theta_t_f = ThetaOrRFunc(theta_t, xL12, lens_model, kappa, gamma, 'theta')
-
-        # those with root
-        flag_root = (theta_t_f[1:] * theta_t_f[:-1]) <=0
-        theta_t_min = theta_t[:-1][flag_root]
-        theta_t_max = theta_t[1:][flag_root]
-        for j in range(len(theta_t_min)):
-            tmp = op.brentq(ThetaOrRFunc, theta_t_min[j],theta_t_max[j], args=(xL12, lens_model, kappa, gamma, 'theta'))
-            theta_t_res.append(tmp)
-
-    # corresponding r_t
-    theta_t_res = np.array(theta_t_res)
-    r_t = ThetaOrRFunc(theta_t_res, xL12, lens_model, kappa, gamma, 'r')
     
+        # solve the theta-function
+        N_theta_t = 100
+        d_theta_t = 1e-3
     
-    # true solutions
-    true_flag = r_t>1e-5
-    theta_t_res = theta_t_res[true_flag]
-    if not isinstance(r_t, int):
-        r_t = r_t[true_flag]
-    nimages = len(theta_t_res)
-    # to x, y
-    dx1 = r_t*np.cos(theta_t_res)
-    dx2 = r_t*np.sin(theta_t_res)
-    xI12 = [dx1 + xL12[0], dx2 + xL12[1]]
+        node_theta_t = np.array([0, 0.5*np.pi, np.pi, 1.5*np.pi, 2.*np.pi])
+    
+        theta_t_res = []
+    
+        # +++++++++++++ solve the lens equation
+        #if gamma!=0 and kappa!=0:
+        
+        for i in range(len(node_theta_t)-1):
+    
+            theta_t = np.linspace(node_theta_t[i]+d_theta_t, node_theta_t[i+1]-d_theta_t, N_theta_t)
+            theta_t_f = ThetaOrRFunc(theta_t, xL12, lens_model, kappa, gamma, 'theta')
+    
+            # those with root
+            flag_root = (theta_t_f[1:] * theta_t_f[:-1]) <=0
+            theta_t_min = theta_t[:-1][flag_root]
+            theta_t_max = theta_t[1:][flag_root]
+            for j in range(len(theta_t_min)):
+                tmp = op.brentq(ThetaOrRFunc, theta_t_min[j],theta_t_max[j], args=(xL12, lens_model, kappa, gamma, 'theta'))
+                theta_t_res.append(tmp)
+    
+        # corresponding r_t
+        theta_t_res = np.array(theta_t_res)
+        r_t = ThetaOrRFunc(theta_t_res, xL12, lens_model, kappa, gamma, 'r')
+        
+        
+        # true solutions
+        true_flag = r_t>1e-5
+        theta_t_res = theta_t_res[true_flag]
+        if not isinstance(r_t, int):
+            r_t = r_t[true_flag]
+        nimages = len(theta_t_res)
+        # to x, y
+        dx1 = r_t*np.cos(theta_t_res)
+        dx2 = r_t*np.sin(theta_t_res)
+        xI12 = [dx1 + xL12[0], dx2 + xL12[1]]
 
     # +++++++++++++ magnification 
     if return_mu:
@@ -305,13 +339,13 @@ if __name__ == '__main__':
 
     # lens
     #lens_model = 'point'
-    lens_model= 'SIS'
+    lens_model= 'point'
     xL1 = 0.5
-    xL2 = 0.5
+    xL2 = 0.1
 
     # external shear
     kappa = 0
-    gamma = 0
+    gamma = 0.1
 
     n_steps=800
     n_bins=800
@@ -334,7 +368,7 @@ if __name__ == '__main__':
     print('time delay', tauI)
 
     #contour plot
-    fig = plt.figure(dpi=100)
+    fig = plt.figure(dpi=300)
     left, bottom, width, height = 0.1, 0.1, 0.8, 0.8
     ax = fig.add_axes([left, bottom, width, height]) 
     # image
@@ -347,6 +381,7 @@ if __name__ == '__main__':
     cp.ax.set_ylabel('y', fontsize=13)
     cp.ax.set_xlabel('x', fontsize=13)
     
-    plt.title('Contour plot of time delay', fontsize=13)
-    # plt.savefig('./test/contour_plot_with_points.png')
+    additional_info='x_L1'+str(xL1)+ 'x_L2'+str(xL2)+'kappa'+str(kappa)+'gamma'+str(gamma)
+    plt.title(lens_model+ ' -- Contour plot of time delay', fontsize=13)
+    plt.savefig('../plot/contour_plot_with_points'+additional_info+'.png')
     plt.show()
