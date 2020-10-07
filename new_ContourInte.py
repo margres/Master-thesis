@@ -328,6 +328,8 @@ def fit_Func(t_ori,Ft_orig,funct, fit_type_ext='log', fit_type='han'):
             #print(len(s))
             w=np.hanning(window_len)
             #print(len(w))
+            #plt.plot(w)
+            #plt.show()
             
             Ft_new=np.convolve(w/w.sum(),s,mode='valid')
             #y=w/w.sum()*s
@@ -345,7 +347,7 @@ def fit_Func(t_ori,Ft_orig,funct, fit_type_ext='log', fit_type='han'):
         We can use a linear fitting or a log one.        
         '''
         
-        t_max = 200
+        t_max = 100
         #begin_fit=np.where(t_ori>np.max(t_ori)-0.2)[0][0]
         t_cut = 0.6
         tail_mask = t_ori>t_cut
@@ -375,28 +377,12 @@ def fit_Func(t_ori,Ft_orig,funct, fit_type_ext='log', fit_type='han'):
     else:
         raise Exception('Unsupported fitting type! using either lin or log!')
             
-'''
-def extend_Fc(xs,ys):
-       
-    xs_extension,ys_extension, n_points=fit_Func(xs,ys,'ftd_ext')
-    
-    t_final = np.concatenate([t, t_new[t_new>(t[-1]+dt/2)]])
-    Ftd_final = np.concatenate([Ftd, Ftd_new[t_new>(t[-1]+dt/2)]])
-    N = len(t_final)
-    
-    index_extension=np.where(xs_extension>np.max(xs))[0][0]
-    xs_extended=np.append(xs,xs_extension[index_extension:])
-    ys_extended=np.append(ys,ys_extension[index_extension:])
-
-    
-    return xs_extended,ys_extended
-'''
 
 if __name__ == '__main__':
 
     import matplotlib.pyplot as plt
     import time 
-       
+    from scipy import signal
 
     
     # lens
@@ -489,21 +475,75 @@ if __name__ == '__main__':
     
 ################ Plot magnification factor   ##############################
     
-    Ft_new=Hanning_smooth(t_new,Ft_new)    
-    w,F_diff=Fd_w(t_new,Ft_new,tau_list,Ftd)
-  
-    F_clas=np.zeros((4,len(w)), dtype="complex_")
-
+    #Ft_new=Hanning_smooth(t_new,Ft_new) 
     
+    if False: #mask only after first part
+        
+        mask=Ft_new>0    
+        #multiplication in the time domain is equal to convolution in the frequency domain
+        #window = signal.get_window('hanning', len(t_new[mask]))  
+        window = signal.cosine(len(t_new[mask]))
+        
+        plt.plot(t_new[mask],window)
+        plt.title('Window')
+        plt.legend()
+        plt.show()
+        
+        
+        plt.plot(t_new[mask], Ft_new[mask]*window)
+        plt.plot(t_new[~mask],Ft_new[~mask])
+        #plt.xlim(58,62)
+        plt.show()
+        
+        Ft_wind=np.r_[Ft_new[~mask],Ft_new[mask]*window]
+        
+        t_wind=t_new[:-1]
+        t_new, Ft_wind=fit_Func(t_wind,Ft_wind,'ftd')
+        
+        plt.plot(t_new,Ft_wind)
+        plt.show()
+        
+    if True: #mask peak in the first part
+                
+        #window = signal.get_window('hanning', len(t_new[mask]))  
+        window = signal.kaiser(2*len(t_new),40)
+     
+        #t_wind=np.r_[-t_new[::-1],t_new]
+        
+        t_wind=t_new
+        #Ft_wind=np.r_[np.zeros_like(t_new)*window[:int(window.size/2.)], Ft_new*window[int(window.size/2.):]]
+        Ft_wind=Ft_new*window[int(window.size/2.):]
+        #plt.plot(t_wind,window)
+        plt.plot(t_wind,window[int(window.size/2.):])
+        plt.title('Window')
+        plt.show()
+        
+        plt.plot(t_wind, Ft_wind,label='windowed')
+        plt.plot(t_new, Ft_new,label='original')
+        #plt.xlim(0,2)
+        plt.legend()
+        plt.show()
+
+        
+        #Ft_wind= Ft_new*window[int(window.size/2.):]#np.r_[Ft_new[~mask],Ft_new[mask]*window[mask]]
+
+        
+    
+      
+
+        
+    w,F_diff=Fd_w(t_wind,Ft_wind,tau_list,Ftd)    
+    
+    F_clas=np.zeros((4,len(w)), dtype="complex_")
     for i,(m,t) in enumerate(zip(muI,tauI)):
         F_clas[i,:]=FT_clas(w,t,m, t_new, Ft_new)
     F_clas=np.sum(F_clas,axis=0)
     
     
-    plt.plot(w, np.abs(F_diff), '.',label='F diffraction')
+    plt.plot(w, np.abs(F_diff)**2, '.',label='F diffraction')
 
-    plt.plot(w, np.abs(F_clas), label='F semi-classical')
-    plt.plot(w, np.abs(F_clas + F_diff), label='F full')
+    #plt.plot(w, np.abs(F_clas), label='F semi-classical')
+    #plt.plot(w, np.abs(F_clas + F_diff), label='F full')
     plt.xlabel('frequency')
     plt.ylabel('|F|^2 amplification factor')
     plt.title('Magnification factor')

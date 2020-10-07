@@ -32,7 +32,7 @@ def FFT(xs,ys, add_zeros='False'):
     '''
     
     dt= xs[1]-xs[0]
-    
+    '''
     if add_zeros=='True':
         
         N_zeros = 1000
@@ -42,14 +42,16 @@ def FFT(xs,ys, add_zeros='False'):
         Ftd_final = np.concatenate([np.zeros(N_zeros), ys, np.zeros(N_zeros)])
         N = len(t_final)
     else:
+   
         N=len(xs)
         t_final=xs
         Ftd_final=ys
-        
+    '''
+    N=ys.size + 1000
     # 4. FFT
     ## note: Ftd_final is real, so first half of the FFT series gives usable information
     ##      you can either remove the second half of ifft results, or use a dedicated function ihfft   
-    Fw=np.fft.ihfft(Ftd_final) # I can add parameter n with value higher tan len(Ftd_final) and it will automatically create a padding of zeros
+    Fw=np.fft.ihfft(ys, n=N) # I can add parameter n with value higher tan len(Ftd_final) and it will automatically create a padding of zeros
     ## multiply back what is divided
     Fw *= N
     ## multiply sampling interval to transfer sum to integral
@@ -84,12 +86,14 @@ def Fd_w(xs,ys,t_ori,Ft_ori):
     use xs and ys on the last equation.
     '''
     
-    omega,Fw=FFT(xs,ys)    
+    omega,Fw=FFT(xs,ys)  
+    #print(omega.size,Fw.size)
     Fw = Fw*omega/(2j*np.pi)-Ft_ori[0]*np.exp(1j*omega*t_ori[0])/2/np.pi
+    #Fw = Fw*omega/(2j*np.pi)#-Ft_ori[0]*np.exp(1j*omega*t_ori[0])/2/np.pi
     
     return omega,Fw
 
-'''
+
 def Hanning_smooth(t,Ft):
     
     print('Applying hanning smooth')
@@ -112,6 +116,6 @@ def Hanning_smooth(t,Ft):
     print('Hanning smooth done')
     
     return Ft_wind
-'''
+
 
 
