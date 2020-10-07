@@ -94,28 +94,6 @@ def Fd_w(xs,ys,t_ori,Ft_ori):
     return omega,Fw
 
 
-def Hanning_smooth(t,Ft):
-    
-    print('Applying hanning smooth')
-    
-    #mask=t>2 #when to start using the window function
-    mask=t>1
-    
-    signal=Ft[mask]
-    window_len=100 #decide the lenght of the window
-    s=np.r_[signal[window_len-1:0:-1],signal,signal[-2:-window_len-1:-1]]
-    print(len(s))
-    w=np.hanning(window_len)
-    print(len(w))
-    
-    y=np.convolve(w/w.sum(),s,mode='valid')
-    #y=w/w.sum()*s
-    y=y[int((window_len/2-1)):-int((window_len/2))]
-    
-    Ft_wind=np.r_[Ft[~mask],y]
-    print('Hanning smooth done')
-    
-    return Ft_wind
-
+ 
 
 
