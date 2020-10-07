@@ -67,7 +67,7 @@ def TFunc(x12, xL12, lens_model, kappa=0, gamma=0,core=[1,0]):
     return tau
 
 
-def dTFunc(x12, xL12, lens_model, kappa=0, gamma=0,a=1,b=2):
+def dTFunc(x12, xL12, lens_model, kappa=0, gamma=0,core=[1,0]):
     """
     the first derivative of time-delay function (Fermat potential)
     Parameters
