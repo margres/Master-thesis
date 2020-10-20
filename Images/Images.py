@@ -313,8 +313,9 @@ def LensEq(r_t,gamma, lens_model,xL12):
         # distance between light impact position and lens position
         #dx1 = r_t[0]
         #dx2 = r_t[1]
-        dx1 = r_t[0]-xL12[0]
-        dx2 = r_t[1]-xL12[1]
+        dx1 = np.absolute(x12[0]-xL12[0])
+        x1 = r_t[0]-xL12[0]
+        x2 = r_t[1]-xL12[1]
         
     if gamma==0:  
             #for axisymmetric lenses
@@ -331,14 +332,14 @@ def LensEq(r_t,gamma, lens_model,xL12):
     
          # deflection potential
         if lens_model == 'point'  :
-            dx12dx22 = dx1**2.+dx2**2
-            dx1 = dx1/dx12dx22
-            dx2 = dx2/dx12dx22
+            dx12dx22 = x1**2.+x2**2
+            dx1 = x1/dx12dx22
+            dx2 = x2/dx12dx22
     
         elif lens_model == 'SIS':
-            dx12dx22 = np.sqrt(dx1**2.+dx2**2.)
-            dx1 = dx1/dx12dx22
-            dx2 = dx2/dx12dx22
+            dx12dx22 = np.sqrt(x1**2.+x2**2.)
+            dx1 = x1/dx12dx22
+            dx2 = x2/dx12dx22
         
         alpha=np.array((dx1,dx2))
     
