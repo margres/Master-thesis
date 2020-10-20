@@ -208,7 +208,7 @@ def muFunc(x12, xL12, lens_model, kappa=0, gamma=0, FindCrit=False):
         # d^2psi/dx1dx2
         dpsid12 = -(dx1*dx2)/dx12pdx22_32
         
-     elif lens_model == 'SIScore':
+    elif lens_model == 'SIScore':
         dx12pdx22_32 = a*((dx1**2.+ dx2**2.)/c**2+b**2)**(3/2)
         # d^2psi/dx1^2
         dpsid11 = dx2**2/dx12pdx22_32

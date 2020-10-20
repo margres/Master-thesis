@@ -278,10 +278,12 @@ def FtHistFunc(xL12, lens_model, kappa=0, gamma=0, tlim=6., dt=1e-2):
     #plt.xlim(0,2)
     #plt.show()
     
-    plt.plot(tau_list, Ft_list,label='original')
+    plt.plot(tau_list, Ft_list,label='original - extended')
     
-    window = signal.cosine(len(tau_list),40)    #create the window
-    Ft_list=Ft_list*window 
+    
+    #window function
+    window = signal.cosine(2*len(tau_list),40)    #create the window
+    Ft_list=Ft_list*window[int(window.size/2.):]
     
     plt.plot(tau_list, Ft_list,label='windowed')
     #plt.xlim(0,2)
@@ -422,14 +424,14 @@ if __name__ == '__main__':
     start = time.time()
     
     
-    tau_list, Ftd, Ft_list, muI, tauI = FtHistFunc([xL1, xL2], lens_model, kappa, gamma, tlim, dt)
+    tau_list, Ftd_orig, Ft_list, muI, tauI = FtHistFunc([xL1, xL2], lens_model, kappa, gamma, tlim, dt)
     # print(good_nodes)
     
     
     np.save('muI.npy', muI)
     np.save('tau_list.npy', tau_list)
     np.save('tauI.npy', tauI)
-    np.save('Ftd.npy', Ftd)
+    np.save('Ftd.npy', Ftd_orig)
     np.save('Ft_list.npy', Ft_list)
     print('finished in', time.time()-start)
     
@@ -456,35 +458,12 @@ if __name__ == '__main__':
     print('Plot saved to', outfile)
 
 
-################       Windowing               ##############################
-    
-    '''
-    window = signal.cosine(2*len(tau_list),40)    #create the window
-    Ft_wind=Ft_list*window[int(window.size/2.):] #apply it
-    plt.plot(tau_list,window[int(window.size/2.):])   
-    plt.title('Window')
-    plt.savefig('./plot/Window_function.png', dpi=300)
-    plt.show()
-    
-    plt.plot(tau_list, Ftd_wind,label='windowed')
-    plt.plot(tau_list, Ft_list,label='original')
-    #plt.xlim(0,2)
-    plt.legend()
-    plt.savefig('./plot/'+lens_model+'WindowFunction_'+additional_info+'.png',dpi=300)
-    plt.show()
-    '''
-
 ################ Plot F_d   ###############################################
     
     outfile = './plot/'+lens_model+'_Ftd'+additional_info+'.png'
-    print(tau_list.size,Ftd.size)
-    t_smooth, Ftd_smooth=fit_Func(tau_list,Ftd,np.max(tauI)+0.3,'ftd')
-    
-    print(t_smooth.size,Ftd_smooth.size)
-    
-    
-    plt.plot(tau_list, Ftd, color='orange', label='original')
-    plt.plot(t_smooth, Ftd_smooth, color='green', label='fitted')
+    tau, Ftd=fit_Func(tau_list,Ftd_orig,np.max(tauI)+0.3,'ftd')    
+    plt.plot(tau_list, Ftd_orig, color='orange', label='original')
+    plt.plot(tau, Ftd, color='green', label='fitted')
     plt.xlabel('time')
     plt.ylabel('F_d tilde')
     plt.title('Diffraction contribution')
@@ -495,13 +474,14 @@ if __name__ == '__main__':
 
     print('Plot saved to', outfile)
 
-
+    '''
     
 ################ Plot F_d extrapolated at high t   ########################
     
   
-    t_new, Ft_new=fit_Func(t_smooth, Ftd_smooth,t_smooth[-100],'ftd_ext')
-    plt.plot(t_new, Ft_new)
+
+    tau, Ftd=fit_Func(tau, Ftd,tau[-100],'ftd_ext')
+    plt.plot(tau, Ftd)
     plt.xlabel('time')
     plt.ylabel('F_d tilde')
     plt.title('F_d tilde extrapolated at high t')
@@ -510,39 +490,35 @@ if __name__ == '__main__':
     plt.savefig('./plot/'+lens_model+'Ftd_extension'+additional_info+'.png',dpi=300)
     plt.show()
 
-    
-    np.save('t_new.npy', t_new)
-    np.save('Ft_new.npy', Ft_new)
-
-
-    
+    '''    
 ################       Windowing               ##############################
-    '''
+    
   
-    window = signal.cosine(2*len(t_new),40)    #create the window
-    Ft_wind=Ft_new*window[int(window.size/2.):] #apply it
-    plt.plot(t_new,window[int(window.size/2.):])
+    window = signal.cosine(2*len(tau),40)    #create the window
+    plt.plot(tau,window[int(window.size/2.):])
     plt.title('Window')
     plt.savefig('./plot/Window_function.png', dpi=300)
     plt.show()
     
-    plt.plot(t_new, Ft_wind,label='windowed')
-    plt.plot(t_new, Ft_new,label='original')
+    plt.plot(tau, Ftd,label='windowed')
+    
+    Ftd=Ftd*window[int(window.size/2.):] #apply window
+    plt.plot(tau, Ftd,label='original')
     #plt.xlim(0,2)
     plt.legend()
     plt.savefig('./plot/'+lens_model+'WindowFunction_'+additional_info+'.png',dpi=300)
     plt.show()
     
-    '''
+# =============================================================================
+#     
+# =============================================================================
 ################ Plot magnification factor   ##############################    
     
-    Ft_wind= Ftd_smooth
-    t_new= t_smooth
-    w,F_diff= Fd_w(t_new, Ft_wind,tau_list,Ftd)    
+    w,F_diff= Fd_w(tau, Ftd,tau_list,Ftd_orig)    
     
     F_clas=np.zeros((4,len(w)), dtype="complex_")
     for i,(m,t) in enumerate(zip(muI,tauI)):
-        F_clas[i,:]=FT_clas(w,t,m, t_new, Ft_wind)
+        F_clas[i,:]=FT_clas(w,t,m, tau, Ftd)
     F_clas=np.sum(F_clas,axis=0)
     
     

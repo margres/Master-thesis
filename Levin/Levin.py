@@ -134,7 +134,7 @@ def ChebyshevUFunc(xmin, xmax, size):
     return xlist, np.vstack(Ulist).transpose()
 
 
-def GpFunc(xlist, w, y, model_lens):
+def GpFunc(xlist, w, y, model_lens,fact):
     """
     the differentiation of the G(x) function shown in exponential factor
     Parameters
@@ -151,7 +151,18 @@ def GpFunc(xlist, w, y, model_lens):
 
     if model_lens == 'SIS':
         gpx = w * (2.*xlist - 1.) / (1. - xlist)**3.
-    
+        
+    elif model_lens == 'SIScore':
+        a,b,c=fact[0],fact[1],fact[2]     
+        sq=(b**2+xlist**2/(c**2*(xlist - 1)**2))**(0.5)
+        gpx = w * (a*xlist - c**2*xlist*sq)/(c**2*(xlist - 1)**3*sq)
+        
+    elif model_lens == 'powerlaw':
+        E_r = 1
+        p = fact[0]  #p=1 for SIS
+        const=(E_r**(2-p)/p)
+        gpx= w*(xlist/(1-xlist)**3- const * p*(xlist/(1-xlist))**p/(xlist-xlist**2))
+        
     #if model_lens == 'point':
     #g
     #   g = 0.5*(x1**2.*(1) + x2**2.
@@ -159,7 +170,7 @@ def GpFunc(xlist, w, y, model_lens):
 
     return gpx
 
-def WFunc(x, w, y, model_lens):
+def WFunc(x, w, y, model_lens,fact):
     """
     oscillatory part of integrand
         it is extended to a vetor to meet Levin requirement w' = A w
@@ -185,7 +196,17 @@ def WFunc(x, w, y, model_lens):
     # model-dependant exponential factor
     if model_lens == 'SIS':
         gx = w*(0.5*x**2. - x + y + 0.5)
-    
+        
+    elif model_lens== 'SIScore':
+        a,b,c=fact[0],fact[1],fact[2]
+        gx = w*(0.5*x**2. - a*(x**2/c**2+b**2)**(0.5) + y + 0.5)
+        
+    elif model_lens == 'powerlaw':
+        E_r=1
+        p=fact[0] #p=1 for SIS
+        const=(E_r**(2-p)/p)
+        gx = w*(0.5*x**2. - const*x**p + y + 0.5)
+        
     # cos + i*sin for complex exponential part
     cosv = np.cos(gx)
     sinv = np.sin(gx)
@@ -196,7 +217,7 @@ def WFunc(x, w, y, model_lens):
                      j1v*cosv,
                      j1v*sinv])
 
-def LevinFunc(xmin, xmax, size, w, y, model_lens, cosORsin):
+def LevinFunc(xmin, xmax, size, w, y, model_lens, cosORsin,fact):
     """
     Levin method to solve the integral with range (xmin, xmax)
         Using the linear equations
@@ -245,7 +266,7 @@ def LevinFunc(xmin, xmax, size, w, y, model_lens, cosORsin):
     # components for A * u matrix
     #   variable change is already taken into account
     null_matrix = np.zeros((size, size))
-    gpx_u_matrix = np.vstack(GpFunc(xlist, w, y, model_lens))*umatrix
+    gpx_u_matrix = np.vstack(GpFunc(xlist, w, y, model_lens,fact))*umatrix
     rx_u_matrix = np.vstack(r / (1.-xlist)**2.)*umatrix
     xx_u_matrix = np.vstack(1. / xlist / (1-xlist))*umatrix
 
@@ -258,8 +279,8 @@ def LevinFunc(xmin, xmax, size, w, y, model_lens, cosORsin):
 
 
     # oscillatory part
-    f_osci_min = WFunc(xmin, w, y, model_lens)
-    f_osci_max = WFunc(xmax, w, y, model_lens)
+    f_osci_min = WFunc(xmin, w, y, model_lens, fact)
+    f_osci_max = WFunc(xmax, w, y, model_lens, fact)
 
     # basis functions
     ulist_min = ChebyshevTFunc_simple_x(xmin, size)
@@ -300,7 +321,7 @@ def LevinFunc(xmin, xmax, size, w, y, model_lens, cosORsin):
     return I
    
 
-def InteFunc(w, y, model_lens='SIS', size=19, accuracy=1e-6, N_step=50, Niter=int(1e5)):
+def InteFunc(w, y, model_lens='SIScore',fact=[1,0,1], size=19, accuracy=1e-6, N_step=50, Niter=int(1e5)):
     """
     Solve the integral
         int_0^1 dx (x/(1-x)**3) J0(r*(x/(1-x))) exp(i G(x/(1-x)))
@@ -357,7 +378,7 @@ def InteFunc(w, y, model_lens='SIS', size=19, accuracy=1e-6, N_step=50, Niter=in
                     break
                 b = a + dx
 
-            I_test0 = LevinFunc(a, b, size, w, y, model_lens, part_name)
+            I_test0 = LevinFunc(a, b, size, w, y, model_lens, part_name,fact)
             # # break with LinAlgError
             # if I_test0==0:
             #     flag_succeed = (b-a)
@@ -387,8 +408,8 @@ def InteFunc(w, y, model_lens='SIS', size=19, accuracy=1e-6, N_step=50, Niter=in
                     flag_succeed = True
                     break
 
-                I_test11 = LevinFunc(a, xmid, size, w, y, model_lens, part_name)
-                I_test12 = LevinFunc(xmid, b, size, w, y, model_lens, part_name)
+                I_test11 = LevinFunc(a, xmid, size, w, y, model_lens, part_name,fact)
+                I_test12 = LevinFunc(xmid, b, size, w, y, model_lens, part_name,fact)
                 # # break with LinAlgError
                 # if (I_test11==0) or (I_test12==0):
                 #     flag_succeed = (b-a)
@@ -428,7 +449,7 @@ def InteFunc(w, y, model_lens='SIS', size=19, accuracy=1e-6, N_step=50, Niter=in
     return I_cos_sin
 
 
-def InteFunc_simple(w, y, model_lens='SIS', size=19):
+def InteFunc_simple(w, y, model_lens='SIScore', fact=[1,0,1],size=19):
     """
     Solve the integral
         int_0^1 dx (x/(1-x)**3) J0(r*(x/(1-x))) exp(i G(x/(1-x)))
@@ -456,13 +477,13 @@ def InteFunc_simple(w, y, model_lens='SIS', size=19):
     I_cos_sin = np.zeros(2, dtype=float)
     part_names = ['cos', 'sin']
 
-    I_cos_sin[0] = LevinFunc(xmin, xmax, size, w, y, model_lens, 'cos')
-    I_cos_sin[1] = LevinFunc(xmin, xmax, size, w, y, model_lens, 'sin')
+    I_cos_sin[0] = LevinFunc(xmin, xmax, size, w, y, model_lens, 'cos',fact)
+    I_cos_sin[1] = LevinFunc(xmin, xmax, size, w, y, model_lens, 'sin',fact)
 
     return I_cos_sin
 
 
-def InteFunc_fix_step(w, y, model_lens='SIS', size=19, N_step=50):
+def InteFunc_fix_step(w, y, model_lens='SIScore',fact=[1,0,1], size=19, N_step=50):
     """
     Solve the integral
         int_0^1 dx (x/(1-x)**3) J0(r*(x/(1-x))) exp(i G(x/(1-x)))
@@ -494,12 +515,12 @@ def InteFunc_fix_step(w, y, model_lens='SIS', size=19, N_step=50):
     xbounds_list = np.linspace(xmin, xmax, N_step)
     for i in range(len(xbounds_list)-1):
 
-        I_test0 = LevinFunc(xbounds_list[i], xbounds_list[i+1], size, w, y, model_lens, 'cos')
+        I_test0 = LevinFunc(xbounds_list[i], xbounds_list[i+1], size, w, y, model_lens, 'cos',fact)
         # print("sub-result (cos)", I_test0)
         # accumulate results from the last run
         I_cos_sin[0] += I_test0
     
-        I_test0 = LevinFunc(xbounds_list[i], xbounds_list[i+1], size, w, y, model_lens, 'sin')
+        I_test0 = LevinFunc(xbounds_list[i], xbounds_list[i+1], size, w, y, model_lens, 'sin',fact)
         # print("sub-result (sin)", I_test0)
         # accumulate results from the last run
         I_cos_sin[1] += I_test0
@@ -513,73 +534,97 @@ if __name__ == '__main__':
 
     import time
     import cmath 
+    yL1=0.5
+    yL2=0.1
+    #y =round((yL1**2+yL2**2)**(0.5),3)
     
-    y = 0.3
+    y=0.5
+    
     # # results from Mathematica
     # # 2.7270784320701793 + 12.832498219682217*I (integral)
     # # -0.1593982590701816 (phase)
-
-    #const = -1j*w*cmath.exp(1j*w*y**2./2.)
-    w_list=[]
-    res_simple=[]
-    res_fixed=[]
-    res_adaptive=[]
-    time_simple=[]
-    time_fixed=[]
-    time_adaptive=[]
-    
     
     w_range=np.linspace(0.001,100,1000)
-
-   
-
-    # ++++++++++++++++++++++++++ simple with whole range
-    for w in w_range:
-        print('W',w)
-        const = -1j*w*cmath.exp(1j*w*y**2./2.)
-        start = time.time()
-        I_cos_sin = InteFunc_simple(w, y)
-        print("simple method finished in", time.time()-start)
-        print('I_cos', I_cos_sin[0])
-        print('I_sin', I_cos_sin[1])
+    aLin=np.linspace(1,5,5)
+    print(aLin)
+    #bLin=[0,0.0001]
+    #cLin=np.linspace(0.001,1,10)
+    
+    #for b in bLin:
+    #for c in cLin:
+    for a in aLin:
         
-        res = const * (I_cos_sin[0] + 1j*I_cos_sin[1])
-        res_simple.append(res)
-        time_simple.append(time.time()-start)
-        print('phase', cmath.phase(res))
+     
+        w_list=[]
+        res_simple=[]
+        res_fixed=[]
+        res_adaptive=[]
+        time_simple=[]
+        time_fixed=[]
+        time_adaptive=[]
+        model_lens='powerlaw'
     
-        # ++++++++++++++++++++++++++ fixed subdivision
-        start = time.time()
-        I_cos_sin = InteFunc_fix_step(w, y)
-        print("fixed subdivision finished in", time.time()-start)
-        print('I_cos', I_cos_sin[0])
-        print('I_sin', I_cos_sin[1])
-    
-        res = const * (I_cos_sin[0] + 1j*I_cos_sin[1])
-        res_fixed.append(res)
-        time_fixed.append(time.time()-start)
-        print('phase', cmath.phase(res))
-    
-        # ++++++++++++++++++++++++++ optimal with adaptive subdivision
-        
-        start = time.time()
-        I_cos_sin = InteFunc(w, y)
-        print("adaptive subdivision finished in", time.time()-start)
-        print('I_cos', I_cos_sin[0])
-        print('I_sin', I_cos_sin[1])
-    
-        res = const * (I_cos_sin[0] + 1j*I_cos_sin[1])
-        res_adaptive.append(res)
-        time_adaptive.append(time.time()-start)
-        
-        print('phase', cmath.phase(res))
+        #a=1 #amplitude parameter
+        b=0 #core
+        c=1 #flattening parameter
        
+        for w in w_range:
+            
+            print('W',w)
+            const = -1j*w*cmath.exp(1j*w*y**2./2.)
+            
+            '''
+            # ++++++++++++++++++++++++++ simple with whole range
+            
+            start = time.time()
+            I_cos_sin = InteFunc_simple(w, y,model_lens, [a,b,c])
+            print("simple method finished in", time.time()-start)
+            print('I_cos', I_cos_sin[0])
+            print('I_sin', I_cos_sin[1])
+            
+            res = const * (I_cos_sin[0] + 1j*I_cos_sin[1])
+            res_simple.append(res)
+            time_simple.append(time.time()-start)
+            print('phase', cmath.phase(res))
+            
+            # ++++++++++++++++++++++++++ fixed subdivision
+            start = time.time()
+            I_cos_sin = InteFunc_fix_step(w, y,model_lens,[a,b,c])
+            print("fixed subdivision finished in", time.time()-start)
+            print('I_cos', I_cos_sin[0])
+            print('I_sin', I_cos_sin[1])
         
-
-    #df = pd.DataFrame(list(zip(res_simple,time_simple,res_fixed,time_fixed,res_adaptive,time_adaptive)),columns=['res_simple','time_simple','res_fixed','time_fixed','res_adaptive','time_adaptive'] )
-    df = pd.DataFrame(list(zip(res_simple,time_simple,res_fixed,time_fixed, res_adaptive,time_adaptive)),columns=['res_simple','time_simple','res_fixed','time_fixed','res_adaptive','time_adaptive'] )
-
-    df.to_csv('final_levin.txt', sep='\t')
+            res = const * (I_cos_sin[0] + 1j*I_cos_sin[1])
+            res_fixed.append(res)
+            time_fixed.append(time.time()-start)
+            print('phase', cmath.phase(res))
+            '''
+            
+            # ++++++++++++++++++++++++++ optimal with adaptive subdivision
+            
+            start = time.time()
+            I_cos_sin = InteFunc(w, y,model_lens, [a,b,c])
+            print("adaptive subdivision finished in", time.time()-start)
+            print('I_cos', I_cos_sin[0])
+            print('I_sin', I_cos_sin[1])
+        
+            res = const * (I_cos_sin[0] + 1j*I_cos_sin[1])
+            res_adaptive.append(res)
+            time_adaptive.append(time.time()-start)
+            
+            print('phase', cmath.phase(res))
+           
+            
+    
+        #df = pd.DataFrame(list(zip(res_simple,time_simple,res_fixed,time_fixed,res_adaptive,time_adaptive)),columns=['res_simple','time_simple','res_fixed','time_fixed','res_adaptive','time_adaptive'] )
+        #df = pd.DataFrame(list(zip(res_simple,time_simple,res_fixed,time_fixed, res_adaptive,time_adaptive)),columns=['res_simple','time_simple','res_fixed','time_fixed','res_adaptive','time_adaptive'] )
+        
+        df = pd.DataFrame(list(zip(res_adaptive,time_adaptive)),columns=['res_adaptive','time_adaptive'] )
+        if model_lens=='powerlaw':
+            add_info=model_lens+'_lens_dist_'+str(y)+'_p_'+str(a)
+        else:
+            add_info=model_lens+'_lens_dist_'+str(y)+'_a_'+str(a)+'_b_'+str(b)+'_c_'+str(c)
+        df.to_csv('./Levin_'+add_info+'.txt', sep='\t')
 
 # +++++++++++++ Running results (2020-05-04, raam)
 
