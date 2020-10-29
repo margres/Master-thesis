@@ -68,7 +68,7 @@ def TFunc(x12, xL12, lens_model, kappa=0, gamma=0,fact=[1,0,1]):
     return tau
 
 
-def dTFunc(x12, xL12, lens_model, kappa=0, gamma=0):
+def dTFunc(x12, xL12, lens_model, kappa=0, gamma=0,fact=[1,0,1]):
     """
     the first derivative of time-delay function (Fermat potential)
     Parameters
@@ -209,13 +209,13 @@ def muFunc(x12, xL12, lens_model, kappa=0, gamma=0, FindCrit=False):
         dpsid12 = -(dx1*dx2)/dx12pdx22_32
         
     elif lens_model == 'SIScore':
-        dx12pdx22_32 = a*((dx1**2.+ dx2**2.)/c**2+b**2)**(3/2)
+        dx12pdx22_32 = ((dx1**2.+ dx2**2.)/c**2+b**2)**(3/2)*1/a
         # d^2psi/dx1^2
-        dpsid11 = dx2**2/dx12pdx22_32
+        dpsid11 = a*dx2**2/dx12pdx22_32
         # d^2psi/dx2^2
-        dpsid22 = dx1**2/dx12pdx22_32
+        dpsid22 = a*dx1**2/dx12pdx22_32
         # d^2psi/dx1dx2
-        dpsid12 = -(dx1*dx2)/dx12pdx22_32
+        dpsid12 = -(dx1*dx2)/dx12pdx22_32 #need to double check this
         
 
     # Jacobian matrix
@@ -249,51 +249,34 @@ def muFunc(x12, xL12, lens_model, kappa=0, gamma=0, FindCrit=False):
 
 def CritCaus(r_t, xI12,xL12,kappa,gamma,lens_model):
     
-    theta=np.linspace(-2*np.pi,2*np.pi,100)
     fig = plt.figure(dpi=100)
+    
     xL1 = xL12[0]
     xL2 = xL12[1]
+
+    n_steps=800
+    xmin=-5
+    xmax=5
     
-    if gamma==0:
-        
-        xyCrit=np.zeros((2,theta.size))
-        xyCaus=np.zeros((2,theta.size))
+    xy_lin=np.linspace(xmin,xmax,n_steps)
+    X,Y = np.meshgrid(xy_lin, xy_lin)
+    crit_curv=muFunc((X,Y), xL12, lens_model, kappa, gamma, FindCrit=True)
+    cp = plt.contour(X, Y, crit_curv,[0], colors='k',linestyles= '-', linewidths=0.7) 
 
-        for i,th in enumerate(theta):
-            #the circle is centered where the lens is
-            crit=to_cartesian(r_t,th)
-            xyCrit[0,i]=crit[0]+xL1
-            xyCrit[1,i]=crit[1]+xL2
-            caus=to_cartesian(LensEq(r_t,gamma,lens_model, xL12),th)
-            xyCaus[0,i]=caus[0]+xL1
-            xyCaus[1,i]=caus[1]+xL2
-            
-        plt.plot(xyCrit[0,:],xyCrit[1,:], '-', c='k', label='critical curves',linewidth=0.7)
-        plt.scatter(xyCaus[0,:],xyCaus[1,:], c='k',label='caustic')
-        
-    else:
-        n_steps=800
-        xmin=-5
-        xmax=5
-        
-        x_range=xmax-xmin
-        x_lin=np.linspace(xmin,xmax,n_steps)
-        y_lin=np.linspace(xmin,xmax,n_steps)
-        X,Y = np.meshgrid(x_lin, y_lin)
-        crit_curv=muFunc((X,Y), xL12, lens_model, kappa, gamma, FindCrit=True)
-        cp = plt.contour(X, Y, crit_curv,[0], colors='k',linestyles= '-',label='critical curves', linewidths=0.7) 
-        
-        #I get the coordinates of the contour plot
-        p_1 = cp.collections[0].get_paths()[0]  
-        coor_p_1 = p_1.vertices
-        xCrit = coor_p_1[:,0]
-        yCrit = coor_p_1[:,1]
-        plt.plot(xCrit,yCrit)
-        xyCaus=LensEq(np.array((xCrit,yCrit)),gamma,lens_model,xL12)
-        #plt.plot(xyCaus[0]+xL12[0],xyCaus[1]+xL12[1], '-', c='k', label='caustics',linewidth=0.7)
-        plt.plot(xyCaus[0],xyCaus[1], '-', c='k', label='caustics',linewidth=0.7)
-        
+    
+    #I get the coordinates of the contour plot
+    p_1 = cp.collections[0].get_paths()[0]  
+    coor_p_1 = p_1.vertices
+    xCrit = coor_p_1[:,0]
+    yCrit = coor_p_1[:,1]
+    plt.plot(xCrit,yCrit,'--', color='k',label='critical curves',linewidth=0.7)
+    xyCaus=LensEq(np.array((xCrit,yCrit)),gamma,lens_model,xL12)
+    plt.plot(xyCaus[0]+xL12[0],xyCaus[1]+xL12[1], '-', c='k', label='caustics',linewidth=0.7)
+    #plt.plot(xyCaus[0],xyCaus[1], '-', c='k', label='caustics',linewidth=0.7)
+    plt.scatter(0, 0, marker='*',color='orange', label='source')
 
+    ####
+    
     plt.scatter(xI12[0], xI12[1], marker='o',color='r', label='images')
     plt.scatter(xL12[0], xL12[1], marker='x',color='r', label='lens')
     
@@ -308,42 +291,31 @@ def CritCaus(r_t, xI12,xL12,kappa,gamma,lens_model):
     plt.show()
     
 def LensEq(r_t,gamma, lens_model,xL12):
-    
-    if gamma!=0:
-        # distance between light impact position and lens position
-        #dx1 = r_t[0]
-        #dx2 = r_t[1]
-        dx1 = np.absolute(x12[0]-xL12[0])
-        x1 = r_t[0]-xL12[0]
-        x2 = r_t[1]-xL12[1]
         
-    if gamma==0:  
-            #for axisymmetric lenses
-            
-        if lens_model=='SIS':        
-            alpha = np.sign(r_t)
-            
-        elif lens_model=='point':
-            E_r=1
-            alpha= E_r**2/r_t
-    else:  
     #general case, lens eq: beta=theta- alpha
     #nambla psi= alpha
     
-         # deflection potential
-        if lens_model == 'point'  :
-            dx12dx22 = x1**2.+x2**2
-            dx1 = x1/dx12dx22
-            dx2 = x2/dx12dx22
+    x1 = r_t[0]-xL12[0]
+    x2 = r_t[1]-xL12[1]
+     # deflection potential
+    x1_per = x1*(kappa+gamma)
+    x2_per = x2*(kappa-gamma)
     
-        elif lens_model == 'SIS':
-            dx12dx22 = np.sqrt(x1**2.+x2**2.)
-            dx1 = x1/dx12dx22
-            dx2 = x2/dx12dx22
-        
-        alpha=np.array((dx1,dx2))
+    if lens_model == 'point'  :
+        dx12dx22 = x1**2.+x2**2
+        dx1 = x1/dx12dx22
+        dx2 = x2/dx12dx22
+
+    elif lens_model == 'SIS':
+        dx12dx22 = np.sqrt(x1**2.+x2**2.)
+        dx1 = x1/dx12dx22
+        dx2 = x2/dx12dx22
     
-    return r_t - alpha
+    alpha=np.array((dx1+x1_per,dx2+x2_per))
+    x = np.array((x1,x2))
+    
+    
+    return  x - alpha
     
     
     
@@ -398,7 +370,7 @@ def Images(xL12, lens_model, kappa=0, gamma=0, return_mu=True, return_T=False):
             xI12 = [dx1, dx2]
             
      
-        CritCaus(E_r, xI12,xL12,kappa,gamma,lens_model) #wihtout external shear critical curve is the Einstein radius
+        #CritCaus(E_r, xI12,xL12,kappa,gamma,lens_model) #wihtout external shear critical curve is the Einstein radius
             
             
     # 2D problem
@@ -465,11 +437,13 @@ if __name__ == '__main__':
 
     #import matplotlib.pyplot as plt
 
+    import CritCaus
+    
     # lens
     #lens_model = 'point'
-    lens_model= 'SIScore'
-    xL1 = 0.5
-    xL2 = 0.1
+    lens_model= 'SIS'
+    xL1 = 0.1
+    xL2 = 0.5
 
     # external shear
     kappa = 0
@@ -489,12 +463,14 @@ if __name__ == '__main__':
     tau = TFunc([X,Y], [xL1, xL2], lens_model, kappa, gamma, [1,0.5,1])
     
     
+    
+    '''
     fig = plt.figure(dpi=100)
     left, bottom, width, height = 0.1, 0.1, 0.8, 0.8
     ax = fig.add_axes([left, bottom, width, height]) 
     cp = ax.contour(X, Y, tau, np.linspace(0,1,50), linewidths=0.6, extent=[-2,2,-2,2], colors='black')
     
-    '''
+    
     
     nimages, xI12, muI, tauI,Itype = Images([xL1, xL2], lens_model, kappa, gamma, return_mu=True, return_T=True) 
     print('number of images', nimages)
@@ -514,6 +490,7 @@ if __name__ == '__main__':
     plt.ylim(np.min(X)-xL2,np.max(X)+xL2)
 
     plt.scatter(xL1, xL2, marker='x',color='r', label='lens')
+    plt.scatter(0, 0, marker='*',color='orange', label='source')
     plt.gca().set_aspect('equal', adjustable='box')
     cp.ax.set_ylabel('y', fontsize=13)
     cp.ax.set_xlabel('x', fontsize=13)
@@ -523,4 +500,4 @@ if __name__ == '__main__':
     plt.legend()
     plt.savefig('../plot/contour_plot_with_points_'+additional_info+'.png')
     plt.show()
-    ''' 
+    '''

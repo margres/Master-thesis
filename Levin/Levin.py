@@ -153,20 +153,27 @@ def GpFunc(xlist, w, y, model_lens,fact):
         gpx = w * (2.*xlist - 1.) / (1. - xlist)**3.
         
     elif model_lens == 'SIScore':
-        a,b,c=fact[0],fact[1],fact[2]     
+        a,b,c=fact[0], fact[1], fact[2]     
         sq=(b**2+xlist**2/(c**2*(xlist - 1)**2))**(0.5)
         gpx = w * (a*xlist - c**2*xlist*sq)/(c**2*(xlist - 1)**3*sq)
         
     elif model_lens == 'powerlaw':
         E_r = 1
-        p = fact[0]  #p=1 for SIS
+        p = fact[3]  #p=1 for SIS
         const=(E_r**(2-p)/p)
         gpx= w*(xlist/(1-xlist)**3- const * p*(xlist/(1-xlist))**p/(xlist-xlist**2))
         
-    #if model_lens == 'point':
-    #g
-    #   g = 0.5*(x1**2.*(1) + x2**2.
-   #tau -= np.log(np.sqrt(dx1**2.+dx2**2))
+    elif model_lens == 'point':
+        gpx=-w*(0.5*xlist**2 - 2*xlist +1)/((1-xlist)**3 *xlist)
+        
+    elif model_lens == 'softenedpowerlaw':
+        a,b,c,p=fact[0], fact[1], fact[2],fact[3]     
+        ppart=(b**2+xlist**2/(c**2*(xlist - 1)**2))**(p/2 - 1)
+        gpx = w * xlist* (1-a*p*ppart/c**2)/ (1. - xlist)**3.
+       
+    else:
+        gpx=0
+        raise Exception('Unsupported lens model')
 
     return gpx
 
@@ -203,9 +210,28 @@ def WFunc(x, w, y, model_lens,fact):
         
     elif model_lens == 'powerlaw':
         E_r=1
-        p=fact[0] #p=1 for SIS
+        p=fact[3] #p=1 for SIS
         const=(E_r**(2-p)/p)
         gx = w*(0.5*x**2. - const*x**p + y + 0.5)
+    
+     
+    elif model_lens == 'softenedpowerlaw':
+        a,b,c=fact[0],fact[1],fact[2]
+        p=fact[3]
+        gx=w*(0.5*x**2. - a*(x**2/c**2+b**2)**(p/2) + a*b**p + y + 0.5)
+        
+
+    '''
+    elif model_lens == 'point':
+        xm=(y+(y**2 + 4)**(1/2))/2
+        phim=(xm-y)**2/2 - np.log(xm)
+        #print(x)
+        if x==0:
+            x+=np.e-5
+        gx= w*(0.5*x**2. - np.log(x) + phim)
+    '''
+    
+
         
     # cos + i*sin for complex exponential part
     cosv = np.cos(gx)
@@ -475,7 +501,7 @@ def InteFunc_simple(w, y, model_lens='SIScore', fact=[1,0,1],size=19):
     xmax = 1.-1e-9
 
     I_cos_sin = np.zeros(2, dtype=float)
-    part_names = ['cos', 'sin']
+    #part_names = ['cos', 'sin']
 
     I_cos_sin[0] = LevinFunc(xmin, xmax, size, w, y, model_lens, 'cos',fact)
     I_cos_sin[1] = LevinFunc(xmin, xmax, size, w, y, model_lens, 'sin',fact)
@@ -534,25 +560,38 @@ if __name__ == '__main__':
 
     import time
     import cmath 
-    yL1=0.5
+    import os
+    from ../Images import Images
+    
+    yL1=0.1
     yL2=0.1
     #y =round((yL1**2+yL2**2)**(0.5),3)
     
-    y=0.5
+    y=0.3
     
     # # results from Mathematica
     # # 2.7270784320701793 + 12.832498219682217*I (integral)
     # # -0.1593982590701816 (phase)
     
     w_range=np.linspace(0.001,100,1000)
-    aLin=np.linspace(1,5,5)
-    print(aLin)
-    #bLin=[0,0.0001]
+    #print(aLin)
+    a=1 #amplitude parameter
+    b=0 #core
+    c=1 #flattening parameter
+    #aLin=np.linspace(1,2 ,5)
+    bLin=np.linspace(0,1,5)
     #cLin=np.linspace(0.001,1,10)
+    #pLin=[1.]
+    p=1
+    models=['SIS','SIScore','powerlaw','softenedpowerlaw']
     
-    #for b in bLin:
+    
+    
+    
+    '''
+    for b in bLin:
     #for c in cLin:
-    for a in aLin:
+    #for p in pLin:
         
      
         w_list=[]
@@ -562,48 +601,19 @@ if __name__ == '__main__':
         time_simple=[]
         time_fixed=[]
         time_adaptive=[]
-        model_lens='powerlaw'
-    
-        #a=1 #amplitude parameter
-        b=0 #core
-        c=1 #flattening parameter
+        model_lens='softenedpowerlaw'
+
        
         for w in w_range:
             
             print('W',w)
             const = -1j*w*cmath.exp(1j*w*y**2./2.)
-            
-            '''
-            # ++++++++++++++++++++++++++ simple with whole range
-            
-            start = time.time()
-            I_cos_sin = InteFunc_simple(w, y,model_lens, [a,b,c])
-            print("simple method finished in", time.time()-start)
-            print('I_cos', I_cos_sin[0])
-            print('I_sin', I_cos_sin[1])
-            
-            res = const * (I_cos_sin[0] + 1j*I_cos_sin[1])
-            res_simple.append(res)
-            time_simple.append(time.time()-start)
-            print('phase', cmath.phase(res))
-            
-            # ++++++++++++++++++++++++++ fixed subdivision
-            start = time.time()
-            I_cos_sin = InteFunc_fix_step(w, y,model_lens,[a,b,c])
-            print("fixed subdivision finished in", time.time()-start)
-            print('I_cos', I_cos_sin[0])
-            print('I_sin', I_cos_sin[1])
         
-            res = const * (I_cos_sin[0] + 1j*I_cos_sin[1])
-            res_fixed.append(res)
-            time_fixed.append(time.time()-start)
-            print('phase', cmath.phase(res))
-            '''
             
             # ++++++++++++++++++++++++++ optimal with adaptive subdivision
             
             start = time.time()
-            I_cos_sin = InteFunc(w, y,model_lens, [a,b,c])
+            I_cos_sin = InteFunc(w, y,model_lens, [a,b,c,p])
             print("adaptive subdivision finished in", time.time()-start)
             print('I_cos', I_cos_sin[0])
             print('I_sin', I_cos_sin[1])
@@ -621,10 +631,52 @@ if __name__ == '__main__':
         
         df = pd.DataFrame(list(zip(res_adaptive,time_adaptive)),columns=['res_adaptive','time_adaptive'] )
         if model_lens=='powerlaw':
-            add_info=model_lens+'_lens_dist_'+str(y)+'_p_'+str(a)
+            add_info=model_lens+'_lens_dist_'+str(y)+'_p_'+str(p)
+            
+        elif model_lens=='softenedpowerlaw':
+            
+            add_info=model_lens+'_lens_dist_'+str(y)+'_a_'+str(a)+'_b_'+str(b)+'_c_'+str(c) + '_p_'+str(p)          
         else:
             add_info=model_lens+'_lens_dist_'+str(y)+'_a_'+str(a)+'_b_'+str(b)+'_c_'+str(c)
-        df.to_csv('./Levin_'+add_info+'.txt', sep='\t')
+            
+        path='../Results/'+model_lens
+        if not os.path.exists(path):
+            os.makedirs(path)
+                   
+        df.to_csv(path+'/Levin_'+add_info+'.txt', sep='\t')
+        
+    '''
+    
+    
+    
+
+
+'''
+# ++++++++++++++++++++++++++ simple with whole range
+
+start = time.time()
+I_cos_sin = InteFunc_simple(w, y,model_lens, [a,b,c])
+print("simple method finished in", time.time()-start)
+print('I_cos', I_cos_sin[0])
+print('I_sin', I_cos_sin[1])
+
+res = const * (I_cos_sin[0] + 1j*I_cos_sin[1])
+res_simple.append(res)
+time_simple.append(time.time()-start)
+print('phase', cmath.phase(res))
+
+# ++++++++++++++++++++++++++ fixed subdivision
+start = time.time()
+I_cos_sin = InteFunc_fix_step(w, y,model_lens,[a,b,c])
+print("fixed subdivision finished in", time.time()-start)
+print('I_cos', I_cos_sin[0])
+print('I_sin', I_cos_sin[1])
+
+res = const * (I_cos_sin[0] + 1j*I_cos_sin[1])
+res_fixed.append(res)
+time_fixed.append(time.time()-start)
+print('phase', cmath.phase(res))
+'''
 
 # +++++++++++++ Running results (2020-05-04, raam)
 
