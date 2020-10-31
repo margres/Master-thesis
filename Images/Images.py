@@ -297,7 +297,8 @@ def LensEq(r_t,gamma, lens_model,xL12):
     
     x1 = r_t[0]-xL12[0]
     x2 = r_t[1]-xL12[1]
-     # deflection potential
+    
+    # deflection potential
     x1_per = x1*(kappa+gamma)
     x2_per = x2*(kappa-gamma)
     
@@ -435,9 +436,8 @@ def Images(xL12, lens_model, kappa=0, gamma=0, return_mu=True, return_T=False):
 
 if __name__ == '__main__':
 
-    #import matplotlib.pyplot as plt
+    from CritCaus import PlotCurves
 
-    import CritCaus
     
     # lens
     #lens_model = 'point'
@@ -453,6 +453,8 @@ if __name__ == '__main__':
     n_bins=800
     xmin=-5
     xmax=5
+    
+    PlotCurves((xL1,xL2),(0,0),kappa,gamma,'SIScore',[1,0,1,1])
 
     x_range=xmax-xmin
     x_lin=np.linspace(xmin,xmax,n_steps)

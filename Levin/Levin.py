@@ -170,7 +170,17 @@ def GpFunc(xlist, w, y, model_lens,fact):
         a,b,c,p=fact[0], fact[1], fact[2],fact[3]     
         ppart=(b**2+xlist**2/(c**2*(xlist - 1)**2))**(p/2 - 1)
         gpx = w * xlist* (1-a*p*ppart/c**2)/ (1. - xlist)**3.
-       
+    
+    elif model_lens == 'softenedpowerlawkappa':
+        a,b,c,p=fact[0], fact[1], fact[2],fact[3]
+        ppart=((b**2*(xlist - 1)**2 + xlist**2)/(xlist - 1)**2)
+        if p!=0:
+            gpx=w* (a**(2-p)*(((ppart)**(p/2)  - b**p)/(p*xlist**2) - ppart**(p/2 - 1)/(xlist - 1)**2)   - xlist/(xlist - 1)**3)
+    
+        else:
+            logarg=((b**2*(xlist - 1)**2 + xlist**2)/(b*(xlist - 1)**2))
+            gpx=w* ( -2*a**2/(b**2*(xlist - 1)**2 + xlist**2) + a**2*np.log(logarg)/xlist**2 - xlist/(xlist - 1)**3   )      
+  
     else:
         gpx=0
         raise Exception('Unsupported lens model')
@@ -202,23 +212,48 @@ def WFunc(x, w, y, model_lens,fact):
 
     # model-dependant exponential factor
     if model_lens == 'SIS':
-        gx = w*(0.5*x**2. - x + y + 0.5)
+        pot=x
+        gx = w*(0.5*x**2. - pot + y + 0.5)
         
     elif model_lens== 'SIScore':
+        
         a,b,c=fact[0],fact[1],fact[2]
-        gx = w*(0.5*x**2. - a*(x**2/c**2+b**2)**(0.5) + y + 0.5)
+        pot=a*(x**2/c**2+b**2)**(0.5)
+        gx = w*(0.5*x**2. - pot + y + 0.5)
         
     elif model_lens == 'powerlaw':
+        
         E_r=1
         p=fact[3] #p=1 for SIS
         const=(E_r**(2-p)/p)
-        gx = w*(0.5*x**2. - const*x**p + y + 0.5)
+        pot=const*x**p
+        gx = w*(0.5*x**2. - pot+ y + 0.5)
     
      
     elif model_lens == 'softenedpowerlaw':
+        
         a,b,c=fact[0],fact[1],fact[2]
         p=fact[3]
-        gx=w*(0.5*x**2. - a*(x**2/c**2+b**2)**(p/2) + a*b**p + y + 0.5)
+        pot=a*(x**2/c**2+b**2)**(p/2) - a*b**p
+        gx=w*(0.5*x**2. - pot + y + 0.5)
+        
+    elif model_lens == 'softenedpowerlawkappa':
+        
+        #isothermal power law for p=0
+        #modified Hubble model for p= 0
+        #Plummer model for p =-2
+        
+        a,b,c,p=fact[0],fact[1],fact[2], fact[3]
+        
+        if p!=0:
+            pot=a**(2-p)/(p*(x+1e-5)) * ((b**2+x**2)**(p/2) - b**p )
+            gx= w*(0.5*x**2. - pot + y + 0.5 )
+        else:
+            pot=a**2/x * np.log(1 + x**2/b**2 )
+            gx= w*(0.5*x**2. -  pot + y + 0.5 )
+        
+
+
         
 
     '''
@@ -561,13 +596,15 @@ if __name__ == '__main__':
     import time
     import cmath 
     import os
-    from ../Images import Images
-    
+    import sys
+    sys.path.append('../')
+    from Images.CritCaus import PlotCurves
+ 
     yL1=0.1
     yL2=0.1
     #y =round((yL1**2+yL2**2)**(0.5),3)
     
-    y=0.3
+    y=0.3 #relative distance lens-source on the lens plane
     
     # # results from Mathematica
     # # 2.7270784320701793 + 12.832498219682217*I (integral)
@@ -576,22 +613,25 @@ if __name__ == '__main__':
     w_range=np.linspace(0.001,100,1000)
     #print(aLin)
     a=1 #amplitude parameter
-    b=0 #core
+    b=0.5 #core
     c=1 #flattening parameter
     #aLin=np.linspace(1,2 ,5)
-    bLin=np.linspace(0,1,5)
+    #bLin=np.linspace(0,1,5)
     #cLin=np.linspace(0.001,1,10)
-    #pLin=[1.]
-    p=1
-    models=['SIS','SIScore','powerlaw','softenedpowerlaw']
+    
+    pLin=np.linspace(0,2,5)
+    pLin= [ round(p,2) for p in pLin]
+    print(pLin)
+    
+    #p=1
+    lens_model='softenedpowerlaw'
+    models=['SIS','SIScore','powerlaw','softenedpowerlaw','softenedpowerlawkappa']
     
     
+    #PlotCurves((0,0),(0,y),0,0,lens_model,[a,b,c,p])
     
     
-    '''
-    for b in bLin:
-    #for c in cLin:
-    #for p in pLin:
+    for p in pLin:
         
      
         w_list=[]
@@ -601,7 +641,6 @@ if __name__ == '__main__':
         time_simple=[]
         time_fixed=[]
         time_adaptive=[]
-        model_lens='softenedpowerlaw'
 
        
         for w in w_range:
@@ -613,7 +652,7 @@ if __name__ == '__main__':
             # ++++++++++++++++++++++++++ optimal with adaptive subdivision
             
             start = time.time()
-            I_cos_sin = InteFunc(w, y,model_lens, [a,b,c,p])
+            I_cos_sin = InteFunc(w, y,lens_model, [a,b,c,p])
             print("adaptive subdivision finished in", time.time()-start)
             print('I_cos', I_cos_sin[0])
             print('I_sin', I_cos_sin[1])
@@ -630,22 +669,27 @@ if __name__ == '__main__':
         #df = pd.DataFrame(list(zip(res_simple,time_simple,res_fixed,time_fixed, res_adaptive,time_adaptive)),columns=['res_simple','time_simple','res_fixed','time_fixed','res_adaptive','time_adaptive'] )
         
         df = pd.DataFrame(list(zip(res_adaptive,time_adaptive)),columns=['res_adaptive','time_adaptive'] )
-        if model_lens=='powerlaw':
-            add_info=model_lens+'_lens_dist_'+str(y)+'_p_'+str(p)
+        if lens_model=='powerlaw':
+            add_info=lens_model+'_lens_dist_'+str(y)+'_p_'+str(p)
             
-        elif model_lens=='softenedpowerlaw':
+        elif lens_model=='softenedpowerlaw':
             
-            add_info=model_lens+'_lens_dist_'+str(y)+'_a_'+str(a)+'_b_'+str(b)+'_c_'+str(c) + '_p_'+str(p)          
+            add_info=lens_model+'_lens_dist_'+str(y)+'_a_'+str(a)+'_b_'+str(b)+'_c_'+str(c) + '_p_'+str(p)          
+        
+        elif lens_model=='softenedpowerlawkappa':
+            
+            add_info=lens_model+'_lens_dist_'+str(y)+'_a_'+str(a)+'_b_'+str(b) + '_p_'+str(p)   
+        
         else:
-            add_info=model_lens+'_lens_dist_'+str(y)+'_a_'+str(a)+'_b_'+str(b)+'_c_'+str(c)
+            add_info=lens_model+'_lens_dist_'+str(y)+'_a_'+str(a)+'_b_'+str(b)+'_c_'+str(c)
             
-        path='../Results/'+model_lens
+        path='../Results/'+lens_model
         if not os.path.exists(path):
             os.makedirs(path)
                    
         df.to_csv(path+'/Levin_'+add_info+'.txt', sep='\t')
         
-    '''
+
     
     
     

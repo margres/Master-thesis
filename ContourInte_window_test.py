@@ -424,7 +424,8 @@ if __name__ == '__main__':
     start = time.time()
     
     
-    tau_list, Ftd_orig, Ft_list, muI, tauI = FtHistFunc([xL1, xL2], lens_model, kappa, gamma, tlim, dt)
+    
+    #tau_list, Ftd_orig, Ft_list, muI, tauI = FtHistFunc([xL1, xL2], lens_model, kappa, gamma, tlim, dt)
     # print(good_nodes)
     
     

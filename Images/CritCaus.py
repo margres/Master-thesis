@@ -9,6 +9,7 @@ Functions to plot critical curves and caustics
 """
 import scipy.optimize as op
 import numpy as np 
+import matplotlib.pyplot as plt
 
 
 def DistMatrix( dpsid11,dpsid22,dpsid12, kappa,gamma):
@@ -23,7 +24,7 @@ def DistMatrix( dpsid11,dpsid22,dpsid12, kappa,gamma):
     
 
 
-def pseudoSIS(x12,kappa,gamma,fact, caustics=False):
+def SIScore(x12,kappa,gamma,fact, caustics=False):
     
     a=fact[0]
     b=fact[1]
@@ -95,9 +96,6 @@ def pointmass(x12,kappa, gamma, fact,caustics=False):
     x1 = x12[0] 
     x2 = x12[1] 
     
-    #x1=x[0]
-    #x2=x[1]
-    
     #first derivative
     
     dx12dx22 = x1**2.+x2**2
@@ -128,6 +126,83 @@ def pointmass(x12,kappa, gamma, fact,caustics=False):
     
     return detA
 
+def softenedpowerlaw(x12,kappa, gamma, fact,caustics=False):
+    
+    
+    a=fact[0]
+    b=fact[1]
+    c=fact[2]
+    p=fact[3]
+    
+    x1 = x12[0] 
+    x2 = x12[1] 
+    
+
+    dpsi1=a*p*x1*(b**2+(x1**2+x2**2)/c**2)**(p/2 - 1)/c**2
+    dpsi2=a*p*x2*(b**2+(x1**2+x2**2)/c**2)**(p/2 - 1)/c**2
+    
+    if caustics==True:
+        #perturbation contribution
+        x1_per = x1*(kappa+gamma)
+        x2_per = x2*(kappa-gamma)
+        
+        return  np.column_stack((x1_per+dpsi1, x2_per+dpsi2))
+        
+    #second derivatives 
+    
+    ppart=(b**2+ (x1**2+x2**2)/c**2)    
+    dpsid11=a*p*ppart**(p/2 - 1)/c**2 + 2*a*(p/2 - 1)*p*x1**2*ppart**(p/2 - 2)/c**4
+    dpsid22=a*p*ppart**(p/2 - 1)/c**2 + 2*a*(p/2 - 1)*p*x2**2*ppart**(p/2 - 2)/c**4
+    dpsid12=2*a*ppart**(p/2 - 2)*p*x1*x2*(p/2 - 1)/c**4
+    
+    detA = DistMatrix(dpsid11,dpsid22,dpsid12, kappa,gamma)
+    
+    return detA
+    
+
+def softenedpowerlawkappa(x12,kappa, gamma, fact,caustics=False):
+    
+    a=fact[0]
+    b=fact[1]
+    p=fact[3]
+    
+    x1 = x12[0] 
+    x2 = x12[1] 
+    
+
+    x1x22= (x1**2+x2**2)
+    ppart=(x1x22+b**2)
+    
+    if p!=0:
+        dpsi1= x1*a**(2-p)*ppart**(p/2 - 1)/x1x22**(1/2) - x1*a**(2-p)*(ppart**(p/2)-b**p)/(p*x1x22**(3/2))      
+        dpsi2= x2*a**(2-p)*ppart**(p/2 - 1)/x1x22**(1/2) - x2*a**(2-p)*(ppart**(p/2)-b**p)/(p*x1x22**(3/2))
+    
+    else:
+        dpsi1= (a**2*x1*(2 - (2*b**2)/(b**2 + x1x22) - np.log(1 + x1x22/b**2)))/x1x22**(3/2)
+        dpsi2= (a**2*x2*(2 - (2*b**2)/(b**2 + x1x22) - np.log(1 + x1x22/b**2)))/x1x22**(3/2)
+        
+    if caustics==True:
+        #perturbation contribution
+        x1_per = x1*(kappa+gamma)
+        x2_per = x2*(kappa-gamma)
+        
+        return  np.column_stack((x1_per+dpsi1, x2_per+dpsi2))
+    
+    if p!=0:
+        dpsid11 = (a**(2 - p)*(b**p*(-2*x1**2+x2**2) + ppart**(-2 + p/2)*(b**4*(2*x1**2-x2**2) + (-1 + p)*x1x22**2*((-2 + p)*x1**2 + x2**2) + b**2*(-((-4 + p)*x1**4) + 2*x1**2 *x2**2 + (-2 + p)*x2**4))))/(p*x1x22**(5/2))     
+        dpsid22 = (a**(2 - p)*(b**p*(-2*x2**2+x1**2) + ppart**(-2 + p/2)*(b**4*(2*x2**2-x1**2) + (-1 + p)*x1x22**2*((-2 + p)*x2**2 + x1**2) + b**2*(-((-4 + p)*x2**4) + 2*x2**2 *x2**2 + (-2 + p)*x1**4))))/(p*x1x22**(5/2))   
+        dpsid12 = (a**(2 - p)*x1*x2*(-3*b**p + 3*ppart**(p/2) + p*((-2 + p)*x1x22**2*(b**2 + x1x22)**(-2 + p/2) - 2*x1x22*(b**2 +x1x22)**(-1 + p/2))))/(p*x1x22**(5/2))
+        
+    else:
+        dpsid11= a**2*((-2*(b**2*(x1**2 - x2**2) + (3*x1**2 - x2**2)*x1x22))/(x1x22**(3/2)*(b**2 + x1x22)**2) + (( 2*x1**2 - x2**2)*np.log((b**2 + x1x22)/b**2))/x1x22**(5/2))
+        dpsid22= a**2*(( 2*(b**2*(x1**2 - x2**2) + (x1**2 - 3*x2**2)*x1x22))/(x1x22**(3/2)*(b**2 + x1x22)**2) + ((-x1**2 + 2*x2**2)*np.log((b**2 + x1x22)/b**2))/x1x22**(5/2))
+        dpsid12=(a**2*x1*x2*((-4*x1x22*(b**2 + 2*x1x22))/(b**2 + x1x22)**2 + 3 *np.log(1 + x1x22/b**2)))/x1x22**(5/2)
+    
+    detA = DistMatrix(dpsid11,dpsid22,dpsid12, kappa,gamma)
+    
+    return detA
+    
+
 def LensEq(x12,kappa, gamma, fact, lens_model):
     
     x1 = x12[0] 
@@ -153,7 +228,7 @@ def PlotCurves(xS12,xL12,kappa,gamma,lens_model,fact):
     xS1 = xS12[0]
     xS2 = xS12[1]   
     
-    xy_lin=np.linspace(-5,5,1000)
+    xy_lin=np.linspace(-2,2,1000)
     X,Y = np.meshgrid(xy_lin, xy_lin)
     
 
@@ -173,29 +248,34 @@ def PlotCurves(xS12,xL12,kappa,gamma,lens_model,fact):
         xyCrit = xyCrit_all[i].vertices  
         xCrit=xyCrit[:,0] 
         yCrit=xyCrit[:,1]
-        plt.plot(xCrit,yCrit,'--', color='k',label='critical curves',linewidth=0.7)
+        plt.plot(xCrit,yCrit,'k--',linewidth=0.7)
     
         xyCaus=LensEq((xCrit,yCrit), kappa, gamma, fact, lens_model)
-        plt.plot(xyCaus[:,0],xyCaus[:,1], 'k-',label='caustics',linewidth=0.7) 
+        plt.plot(xyCaus[:,0],xyCaus[:,1],'k-',linewidth=0.7) 
     
-
+    plt.plot(np.nan,np.nan,'k--',label='critical curves',linewidth=0.7)
+    plt.plot(np.nan,np.nan,'k-',label='caustics',linewidth=0.7) 
+    
+    #I always plot the critical curves and caustics with the lens in the middle
+    if xL1!=0 and xL2!=0:
+        xS1=xL1-xS1
+        xS2=xL2-xS2
+        xL1=0
+        xL2=0
+        
     plt.scatter(xL1, xL2, marker='x',color='r', label='lens')
     plt.scatter(xS1, xS2, marker='*',color='orange', label='source')
     
     plt.legend()
     plt.show()
     
-    #return _
+    
     
 if __name__ == '__main__':
     
-    import matplotlib.pyplot as plt
-
-    
     kappa=0
-    gamma=0.3
-    lens_model='PseudoSIS'
-    fact=[1.,0.5,1]
+    gamma=0
+    lens_model='softenedpowerlawkappa'
     
     xL1=0
     xL2=0
@@ -206,9 +286,9 @@ if __name__ == '__main__':
     xS12=[xS1,xS2]
     
     a=1
-    b=0
+    b=0.1
     c=1
-    p=1
+    p=0
     fact= [a,b,c,p]
     
     PlotCurves(xS12,xL12,kappa,gamma,lens_model, fact)
