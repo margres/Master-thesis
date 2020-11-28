@@ -107,6 +107,7 @@ def dTFunc(x12, xL12, lens_model, kappa=0, gamma=0,fact=[1,0,1]):
         dtaudx2 -= dx2/dx12dx22
         
     elif lens_model == 'SIScore':
+        a,b,c=fact[0], fact[1], fact[2]
         dx12dx22 = a*np.sqrt((dx1**2.+dx2**2.)/c**2 + b**2)
         dtaudx1 -= dx1/dx12dx22/c**2
         dtaudx2 -= dx2/dx12dx22/c**2
@@ -167,7 +168,7 @@ def ThetaOrRFunc(theta_t, xL12, lens_model, kappa=0, gamma=0, thetaORr='theta'):
 
     
     
-def muFunc(x12, xL12, lens_model, kappa=0, gamma=0, FindCrit=False):
+def muFunc(x12, xL12, lens_model, kappa=0, gamma=0, fact=[1,0,1], FindCrit=False):
     """
     the magnification factor
     Parameters
@@ -209,6 +210,9 @@ def muFunc(x12, xL12, lens_model, kappa=0, gamma=0, FindCrit=False):
         dpsid12 = -(dx1*dx2)/dx12pdx22_32
         
     elif lens_model == 'SIScore':
+        
+        a,b,c,p=fact[0], fact[1], fact[2],fact[3]
+        
         dx12pdx22_32 = ((dx1**2.+ dx2**2.)/c**2+b**2)**(3/2)*1/a
         # d^2psi/dx1^2
         dpsid11 = a*dx2**2/dx12pdx22_32
@@ -247,81 +251,7 @@ def muFunc(x12, xL12, lens_model, kappa=0, gamma=0, FindCrit=False):
         return mu, Itype
 
 
-def CritCaus(r_t, xI12,xL12,kappa,gamma,lens_model):
-    
-    fig = plt.figure(dpi=100)
-    
-    xL1 = xL12[0]
-    xL2 = xL12[1]
-
-    n_steps=800
-    xmin=-5
-    xmax=5
-    
-    xy_lin=np.linspace(xmin,xmax,n_steps)
-    X,Y = np.meshgrid(xy_lin, xy_lin)
-    crit_curv=muFunc((X,Y), xL12, lens_model, kappa, gamma, FindCrit=True)
-    cp = plt.contour(X, Y, crit_curv,[0], colors='k',linestyles= '-', linewidths=0.7) 
-
-    
-    #I get the coordinates of the contour plot
-    p_1 = cp.collections[0].get_paths()[0]  
-    coor_p_1 = p_1.vertices
-    xCrit = coor_p_1[:,0]
-    yCrit = coor_p_1[:,1]
-    plt.plot(xCrit,yCrit,'--', color='k',label='critical curves',linewidth=0.7)
-    xyCaus=LensEq(np.array((xCrit,yCrit)),gamma,lens_model,xL12)
-    plt.plot(xyCaus[0]+xL12[0],xyCaus[1]+xL12[1], '-', c='k', label='caustics',linewidth=0.7)
-    #plt.plot(xyCaus[0],xyCaus[1], '-', c='k', label='caustics',linewidth=0.7)
-    plt.scatter(0, 0, marker='*',color='orange', label='source')
-
-    ####
-    
-    plt.scatter(xI12[0], xI12[1], marker='o',color='r', label='images')
-    plt.scatter(xL12[0], xL12[1], marker='x',color='r', label='lens')
-    
-    plt.ylabel('y', fontsize=13)
-    plt.xlabel('x', fontsize=13)
-    plt.xlim(-3-xL1,3+xL1)
-    plt.ylim(-3-xL2,3+xL2)
-    plt.gca().set_aspect('equal', adjustable='box')
-    plt.legend(loc='lower left',frameon=False,prop={'size':10})
-    additional_info='x_L1'+str(xL1)+ 'x_L2'+str(xL2)+'kappa'+str(kappa)+'gamma'+str(gamma)
-    #plt.savefig('../plot/Critical_Caustics'+additional_info+'.png')
-    plt.show()
-    
-def LensEq(r_t,gamma, lens_model,xL12):
-        
-    #general case, lens eq: beta=theta- alpha
-    #nambla psi= alpha
-    
-    x1 = r_t[0]-xL12[0]
-    x2 = r_t[1]-xL12[1]
-    
-    # deflection potential
-    x1_per = x1*(kappa+gamma)
-    x2_per = x2*(kappa-gamma)
-    
-    if lens_model == 'point'  :
-        dx12dx22 = x1**2.+x2**2
-        dx1 = x1/dx12dx22
-        dx2 = x2/dx12dx22
-
-    elif lens_model == 'SIS':
-        dx12dx22 = np.sqrt(x1**2.+x2**2.)
-        dx1 = x1/dx12dx22
-        dx2 = x2/dx12dx22
-    
-    alpha=np.array((dx1+x1_per,dx2+x2_per))
-    x = np.array((x1,x2))
-    
-    
-    return  x - alpha
-    
-    
-    
-
-def Images(xL12, lens_model, kappa=0, gamma=0, return_mu=True, return_T=False):
+def Images(xL12, lens_model, kappa=0, gamma=0, fact=[1,0,1],return_mu=True, return_T=False):
     """
     Solving the lens equation
     Parameters
@@ -417,11 +347,11 @@ def Images(xL12, lens_model, kappa=0, gamma=0, return_mu=True, return_T=False):
         dx2 = r_t*np.sin(theta_t_res)
         xI12 = [dx1 + xL12[0], dx2 + xL12[1]]
         
-        CritCaus(1, xI12,xL12,kappa,gamma,lens_model)
+        #CritCaus(1, xI12,xL12,kappa,gamma,lens_model)
 
     # +++++++++++++ magnification of the images
     if return_mu: 
-        mag, Itype = muFunc(xI12, xL12, lens_model, kappa, gamma)
+        mag, Itype = muFunc(xI12, xL12, lens_model, kappa, gamma, fact)
     else:
         mag = None
         Itype = None
@@ -441,9 +371,9 @@ if __name__ == '__main__':
     
     # lens
     #lens_model = 'point'
-    lens_model= 'SIS'
+    lens_model= 'point'
     xL1 = 0.1
-    xL2 = 0.5
+    xL2 = 0.3
 
     # external shear
     kappa = 0
@@ -454,7 +384,7 @@ if __name__ == '__main__':
     xmin=-5
     xmax=5
     
-    PlotCurves((xL1,xL2),(0,0),kappa,gamma,'SIScore',[1,0,1,1])
+    #PlotCurves((xL1,xL2),(0,0),kappa,gamma,'SIScore',[1,0,1,1])
 
     x_range=xmax-xmin
     x_lin=np.linspace(xmin,xmax,n_steps)
@@ -462,26 +392,20 @@ if __name__ == '__main__':
 
     X,Y = np.meshgrid(x_lin, y_lin) # grid of point
     
-    tau = TFunc([X,Y], [xL1, xL2], lens_model, kappa, gamma, [1,0.5,1])
+    fact=[1,0,1]
     
     
+    tau = TFunc([X,Y], [xL1, xL2], lens_model, kappa, gamma, fact)
+  
     
-    '''
-    fig = plt.figure(dpi=100)
-    left, bottom, width, height = 0.1, 0.1, 0.8, 0.8
-    ax = fig.add_axes([left, bottom, width, height]) 
-    cp = ax.contour(X, Y, tau, np.linspace(0,1,50), linewidths=0.6, extent=[-2,2,-2,2], colors='black')
-    
-    
-    
-    nimages, xI12, muI, tauI,Itype = Images([xL1, xL2], lens_model, kappa, gamma, return_mu=True, return_T=True) 
+    nimages, xI12, muI, tauI,Itype = Images([xL1, xL2], lens_model, kappa, gamma, fact,return_mu=True, return_T=True) 
     print('number of images', nimages)
     print('positions', xI12)
     print('magnification', muI)
     print('time delay', tauI)
 
     #contour plot
-    fig = plt.figure(dpi=100)
+    fig = plt.figure(dpi=300)
     left, bottom, width, height = 0.1, 0.1, 0.8, 0.8
     ax = fig.add_axes([left, bottom, width, height]) 
     # image
@@ -500,6 +424,12 @@ if __name__ == '__main__':
     additional_info='x_L1_'+str(xL1)+ 'x_L2_'+str(xL2)+'_kappa_'+str(kappa)+'_gamma_'+str(gamma)
     plt.title(lens_model+ ' -- Contour plot of time delay', fontsize=13)
     plt.legend()
-    plt.savefig('../plot/contour_plot_with_points_'+additional_info+'.png')
+    
+    path='../2D_Results/'+lens_model
+        
+    if not os.path.exists(path):
+        os.makedirs(path)
+    
+    plt.savefig(path+'/contour_plot_with_points_'+additional_info+'.png')
     plt.show()
-    '''
+    

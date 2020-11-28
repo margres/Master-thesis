@@ -12,6 +12,8 @@
 import numpy as np 
 import scipy.special as ss
 import pandas as pd
+from FindShift import FirstImage
+import mpmath 
 
 def ChebyshevTFunc_simple_x(x, size):
     """
@@ -148,46 +150,47 @@ def GpFunc(xlist, w, y, model_lens,fact):
     model_lens: string
         lens model 
     """
+    a,b,c,p=fact[0], fact[1], fact[2],fact[3]
 
     if model_lens == 'SIS':
         gpx = w * (2.*xlist - 1.) / (1. - xlist)**3.
         
     elif model_lens == 'SIScore':
-        a,b,c=fact[0], fact[1], fact[2]     
+      
         sq=(b**2+xlist**2/(c**2*(xlist - 1)**2))**(0.5)
         gpx = w * (a*xlist - c**2*xlist*sq)/(c**2*(xlist - 1)**3*sq)
-        
-    elif model_lens == 'powerlaw':
-        E_r = 1
-        p = fact[3]  #p=1 for SIS
-        const=(E_r**(2-p)/p)
-        gpx= w*(xlist/(1-xlist)**3- const * p*(xlist/(1-xlist))**p/(xlist-xlist**2))
-        
+
     elif model_lens == 'point':
-        gpx=-w*(0.5*xlist**2 - 2*xlist +1)/((1-xlist)**3 *xlist)
+        #gpx=-w*(0.5*xlist**2 - 2*xlist +1)/((1-xlist)**3 *xlist)
+        gpx=-w*(1 - 2*xlist)/((1-xlist)**3*xlist)
         
     elif model_lens == 'softenedpowerlaw':
-        a,b,c,p=fact[0], fact[1], fact[2],fact[3]     
-        ppart=(b**2+xlist**2/(c**2*(xlist - 1)**2))**(p/2 - 1)
-        gpx = w * xlist* (1-a*p*ppart/c**2)/ (1. - xlist)**3.
+   
+        #ppart=(b**2+xlist**2/(c**2*(xlist - 1)**2))**(p/2 - 1)
+        gpx = w *  (xlist*(1. - 1.*p*(b**2 + xlist**2/(-1 + xlist)**2)**((-2 + p)/2)))/(1 - xlist)**3
     
     elif model_lens == 'softenedpowerlawkappa':
-        a,b,c,p=fact[0], fact[1], fact[2],fact[3]
-        ppart=((b**2*(xlist - 1)**2 + xlist**2)/(xlist - 1)**2)
-        if p!=0:
-            gpx=w* (a**(2-p)*(((ppart)**(p/2)  - b**p)/(p*xlist**2) - ppart**(p/2 - 1)/(xlist - 1)**2)   - xlist/(xlist - 1)**3)
-    
-        else:
-            logarg=((b**2*(xlist - 1)**2 + xlist**2)/(b*(xlist - 1)**2))
-            gpx=w* ( -2*a**2/(b**2*(xlist - 1)**2 + xlist**2) + a**2*np.log(logarg)/xlist**2 - xlist/(xlist - 1)**3   )      
+             
+        if p!=0:              
+            
+            gpx=w*(xlist/(1-xlist)**3 -( (a**(2 - p)*b**p)/(p*(xlist- 1)*xlist) - (a**(2 - p)*(xlist/(1 - xlist))**p *((b**2 *(1 - xlist)**2)/xlist**2 + 1)**(p/2))/(p*(xlist - 1)*xlist)) )           
+            #print(gpx)
+            #gpx=(a**(2 - p)*(b**p - (1 + (b**2*(1 - xlist)**2)/xlist**2)**(p/2)*(xlist/(1 - xlist))**p))/(p *(-1 + xlist)*xlist)
+        else:          
+            gpx= w*( xlist/(1-xlist)**3 + a**2*np.log(1 + xlist**2/(b**2*(1 - xlist)**2))/((xlist - 1)*xlist))
   
     else:
         gpx=0
         raise Exception('Unsupported lens model')
+        
+    if np.isnan(gpx).any():
+        print(gpx)
+        raise Exception('Unsupported value in the derivative')
 
     return gpx
 
-def WFunc(x, w, y, model_lens,fact):
+def WFunc(x, w, y, phim, model_lens,fact):
+    
     """
     oscillatory part of integrand
         it is extended to a vetor to meet Levin requirement w' = A w
@@ -209,33 +212,21 @@ def WFunc(x, w, y, model_lens,fact):
     # Bessel function
     j0v = ss.j0(w*y*x)
     j1v = ss.j1(w*y*x)
-
+    
+    a,b,c,p =fact[0],fact[1],fact[2],fact[3]
     # model-dependant exponential factor
     if model_lens == 'SIS':
         pot=x
-        gx = w*(0.5*x**2. - pot + y + 0.5)
         
     elif model_lens== 'SIScore':
         
         a,b,c=fact[0],fact[1],fact[2]
-        pot=a*(x**2/c**2+b**2)**(0.5)
-        gx = w*(0.5*x**2. - pot + y + 0.5)
-        
-    elif model_lens == 'powerlaw':
-        
-        E_r=1
-        p=fact[3] #p=1 for SIS
-        const=(E_r**(2-p)/p)
-        pot=const*x**p
-        gx = w*(0.5*x**2. - pot+ y + 0.5)
-    
-     
+        pot=a*(x**2 + b**2)**(0.5)
+  
     elif model_lens == 'softenedpowerlaw':
         
-        a,b,c=fact[0],fact[1],fact[2]
-        p=fact[3]
-        pot=a*(x**2/c**2+b**2)**(p/2) - a*b**p
-        gx=w*(0.5*x**2. - pot + y + 0.5)
+        pot=a*(x**2+b**2)**(p/2) - a*b**p
+
         
     elif model_lens == 'softenedpowerlawkappa':
         
@@ -243,34 +234,49 @@ def WFunc(x, w, y, model_lens,fact):
         #modified Hubble model for p= 0
         #Plummer model for p =-2
         
-        a,b,c,p=fact[0],fact[1],fact[2], fact[3]
         
-        if p!=0:
-            pot=a**(2-p)/(p*(x+1e-5)) * ((b**2+x**2)**(p/2) - b**p )
-            gx= w*(0.5*x**2. - pot + y + 0.5 )
+        if p>0 and b==0:      
+            #eq 28
+            pot=1/p**2 * a**(2-p) *x**p
+               
+        elif p<4 and b!=0 and p!=0:
+            
+            '''
+            if p==1:
+                #isothermal ellipsoid
+                ph=a/x*(np.sqrt(x**2+b**2)-x)
+                pot=x*ph - a*b*np.log((b+np.sqrt(b**2+x**2))/(2*a))
+             '''       
+             
+            t1= 1/p**2 * a**(2-p)*(x+1e-5)**p *ss.hyp2f1(-p/2, -p/2, 1-p/2, -b**2/(x+1e-5)**2)
+            t2= 1/p*a**(2-p)*b**p*np.log((x+1e-5)/b)
+            t3= 1/(2*p) * a**(2-p)*b**p*(np.euler_gamma-ss.digamma(-p/2))            
+            pot=t1 - t2 - t3
+            
+        elif p==0 and b!=0:
+            ##check again this
+            pot=-1/2 * a**2* mpmath.fp.polylog(2,x**2/b**2)
+            #print('pot',mpmath.fp.polylog(2,x**2/b**2))
+            
         else:
-            pot=a**2/x * np.log(1 + x**2/b**2 )
-            gx= w*(0.5*x**2. -  pot + y + 0.5 )
-        
+        #if (b==0 and p<0) or p>=4:
+            #we can not have b=0 and p<0
+            raise Exception('Unsupported lens model')
+            
 
-
-        
-
-    '''
     elif model_lens == 'point':
-        xm=(y+(y**2 + 4)**(1/2))/2
-        phim=(xm-y)**2/2 - np.log(xm)
-        #print(x)
-        if x==0:
-            x+=np.e-5
-        gx= w*(0.5*x**2. - np.log(x) + phim)
-    '''
+        pot=np.log(x+1e-6)
     
-
-        
+    
+    gx= w*(0.5*x**2. - pot + phim)
+  
     # cos + i*sin for complex exponential part
-    cosv = np.cos(gx)
-    sinv = np.sin(gx)
+    cosv = np.cos(float(gx))
+    sinv = np.sin(float(gx))
+    
+    if np.isnan(float(gx)).any():
+        print(gx)
+        raise Exception('Unsupported value in the exponential')
     
 
     return np.array([j0v*cosv,
@@ -278,7 +284,7 @@ def WFunc(x, w, y, model_lens,fact):
                      j1v*cosv,
                      j1v*sinv])
 
-def LevinFunc(xmin, xmax, size, w, y, model_lens, cosORsin,fact):
+def LevinFunc(xmin, xmax, size, w, y, phim, model_lens, cosORsin,fact):
     """
     Levin method to solve the integral with range (xmin, xmax)
         Using the linear equations
@@ -340,8 +346,8 @@ def LevinFunc(xmin, xmax, size, w, y, model_lens, cosORsin,fact):
 
 
     # oscillatory part
-    f_osci_min = WFunc(xmin, w, y, model_lens, fact)
-    f_osci_max = WFunc(xmax, w, y, model_lens, fact)
+    f_osci_min = WFunc(xmin, w, y,phim, model_lens, fact)
+    f_osci_max = WFunc(xmax, w, y,phim, model_lens, fact)
 
     # basis functions
     ulist_min = ChebyshevTFunc_simple_x(xmin, size)
@@ -363,6 +369,7 @@ def LevinFunc(xmin, xmax, size, w, y, model_lens, cosORsin,fact):
     try:
         clist = np.linalg.solve(Lmatrix, rhslist)
     except np.linalg.LinAlgError:
+        #raise Exception("LinAlgError")
         return 0
     # print('clist', clist)
 
@@ -378,12 +385,17 @@ def LevinFunc(xmin, xmax, size, w, y, model_lens, cosORsin,fact):
     
     # integral results
     I = np.dot(p_max, f_osci_max) - np.dot(p_min, f_osci_min)
+    
+    
 
     return I
    
 
 def InteFunc(w, y, model_lens='SIScore',fact=[1,0,1], size=19, accuracy=1e-6, N_step=50, Niter=int(1e5)):
     """
+    
+    accuracy= 1e-6
+    
     Solve the integral
         int_0^1 dx (x/(1-x)**3) J0(r*(x/(1-x))) exp(i G(x/(1-x)))
         Using
@@ -415,7 +427,11 @@ def InteFunc(w, y, model_lens='SIScore',fact=[1,0,1], size=19, accuracy=1e-6, N_
 
     I_cos_sin = np.zeros(2, dtype=float)
     part_names = ['cos', 'sin']
-
+    
+    phim= FirstImage(y,fact,lens_model)
+    
+    
+        
     # cos and sin parts should be divided separately 
     for i_name in range(len(part_names)):
         part_name = part_names[i_name]
@@ -427,6 +443,8 @@ def InteFunc(w, y, model_lens='SIScore',fact=[1,0,1], size=19, accuracy=1e-6, N_
         dx = (xmax-xmin)/N_step
         a = xmin
         b = a + dx
+        
+        
         for Nrun in range(Niter):
 
             # avoid surpassing the upper bound
@@ -438,8 +456,8 @@ def InteFunc(w, y, model_lens='SIScore',fact=[1,0,1], size=19, accuracy=1e-6, N_
                     flag_succeed = True
                     break
                 b = a + dx
-
-            I_test0 = LevinFunc(a, b, size, w, y, model_lens, part_name,fact)
+            
+            I_test0 = LevinFunc(a, b, size, w, y,phim, model_lens, part_name,fact)
             # # break with LinAlgError
             # if I_test0==0:
             #     flag_succeed = (b-a)
@@ -451,6 +469,8 @@ def InteFunc(w, y, model_lens='SIScore',fact=[1,0,1], size=19, accuracy=1e-6, N_
             if I_final != 0.:
                 # define the whole accuracy by comparing the new sub-result with the whole result
                 diff = np.absolute(I_test0/I_final)
+    
+                
                 # print("I_final", I_final)
                 # print("diff", diff)
                 if diff < accuracy:
@@ -469,8 +489,8 @@ def InteFunc(w, y, model_lens='SIScore',fact=[1,0,1], size=19, accuracy=1e-6, N_
                     flag_succeed = True
                     break
 
-                I_test11 = LevinFunc(a, xmid, size, w, y, model_lens, part_name,fact)
-                I_test12 = LevinFunc(xmid, b, size, w, y, model_lens, part_name,fact)
+                I_test11 = LevinFunc(a, xmid, size, w, y,phim, model_lens, part_name,fact)
+                I_test12 = LevinFunc(xmid, b, size, w, y,phim, model_lens, part_name,fact)
                 # # break with LinAlgError
                 # if (I_test11==0) or (I_test12==0):
                 #     flag_succeed = (b-a)
@@ -501,11 +521,11 @@ def InteFunc(w, y, model_lens='SIScore',fact=[1,0,1], size=19, accuracy=1e-6, N_
 
         I_cos_sin[i_name] = I_final
 
-        print("Running part", part_name)
-        print("adaptive subdivision finished with {:} runs".format(Nrun))
+        #print("Running part", part_name)
+        #print("adaptive subdivision finished with {:} runs".format(Nrun))
         # print("resulted total bounds", len(xbounds_list))
-        print("resulted upper bound", b)
-        print("flag_succeed", flag_succeed)
+        #print("resulted upper bound", b)
+        #print("flag_succeed", flag_succeed)
 
     return I_cos_sin
 
@@ -588,7 +608,20 @@ def InteFunc_fix_step(w, y, model_lens='SIScore',fact=[1,0,1], size=19, N_step=5
 
     return I_cos_sin
 
-
+def Smoothing(amp,w,t):
+        
+    w=np.ndarray.tolist(w)
+    flag=[]
+    for k in range(len(w)-1):
+        if abs(amp[k]-amp[k-1]) > 5. and  abs(amp[k]-amp[k+1])>5:
+            flag.append(k)
+        
+    for f in flag:
+        del amp[f]  
+        del w[f]
+        del t[f]
+        
+    #return amp,w
 
 
 if __name__ == '__main__':
@@ -599,10 +632,11 @@ if __name__ == '__main__':
     import sys
     sys.path.append('../')
     from Images.CritCaus import PlotCurves
- 
+    
+    
     yL1=0.1
     yL2=0.1
-    #y =round((yL1**2+yL2**2)**(0.5),3)
+    #y =round((yL1**2+yL2**2)**(0.5),2)
     
     y=0.3 #relative distance lens-source on the lens plane
     
@@ -610,30 +644,34 @@ if __name__ == '__main__':
     # # 2.7270784320701793 + 12.832498219682217*I (integral)
     # # -0.1593982590701816 (phase)
     
-    w_range=np.linspace(0.001,100,1000)
-    #print(aLin)
+    w_range=np.linspace(0.001,100,1050) #usually it is 100 and 1000
+    #w_range=np.logspace(-3,2,1000)
+    
+    
+    
     a=1 #amplitude parameter
-    b=0.5 #core
+    b=0#[0,0.25,0.5,0.75,1,1.5]#0.5 #core
     c=1 #flattening parameter
-    #aLin=np.linspace(1,2 ,5)
-    #bLin=np.linspace(0,1,5)
-    #cLin=np.linspace(0.001,1,10)
+  
+    #pLin=[0.01, 0.25, 0.5, 0.75, 0.9] #np.linspace(0.5,2.5,5)
     
-    pLin=np.linspace(0,2,5)
-    pLin= [ round(p,2) for p in pLin]
-    print(pLin)
+    pLin= [0.5,1,1.1,1.5]# np.linspace(0.5,2.5,5)
     
-    #p=1
-    lens_model='softenedpowerlaw'
-    models=['SIS','SIScore','powerlaw','softenedpowerlaw','softenedpowerlawkappa']
+    #yLin= [0.3] #np.linspace(0,1.5,7)
+    #yLin= [ round(y,2) for y in yLin]
+   # yLin= [-1.0] 
+    #print(pLin)
+    
+
+    lens_model='softenedpowerlawkappa'
+    models=['SIS','SIScore','softenedpowerlaw','softenedpowerlawkappa']
     
     
     #PlotCurves((0,0),(0,y),0,0,lens_model,[a,b,c,p])
     
     
-    for p in pLin:
+    for b in bLin:
         
-     
         w_list=[]
         res_simple=[]
         res_fixed=[]
@@ -653,22 +691,26 @@ if __name__ == '__main__':
             
             start = time.time()
             I_cos_sin = InteFunc(w, y,lens_model, [a,b,c,p])
-            print("adaptive subdivision finished in", time.time()-start)
-            print('I_cos', I_cos_sin[0])
-            print('I_sin', I_cos_sin[1])
+            #print("adaptive subdivision finished in", time.time()-start)
+            #print('I_cos', I_cos_sin[0])
+            #print('I_sin', I_cos_sin[1])
         
             res = const * (I_cos_sin[0] + 1j*I_cos_sin[1])
-            res_adaptive.append(res)
+            res_adaptive.append(res)  
             time_adaptive.append(time.time()-start)
             
-            print('phase', cmath.phase(res))
+            #print('phase', cmath.phase(res))
            
             
-    
-        #df = pd.DataFrame(list(zip(res_simple,time_simple,res_fixed,time_fixed,res_adaptive,time_adaptive)),columns=['res_simple','time_simple','res_fixed','time_fixed','res_adaptive','time_adaptive'] )
+        #I take out some points to take into account edge effects
         #df = pd.DataFrame(list(zip(res_simple,time_simple,res_fixed,time_fixed, res_adaptive,time_adaptive)),columns=['res_simple','time_simple','res_fixed','time_fixed','res_adaptive','time_adaptive'] )
         
-        df = pd.DataFrame(list(zip(res_adaptive,time_adaptive)),columns=['res_adaptive','time_adaptive'] )
+        res_adaptive,time_adaptive,w_range=res_adaptive[:-50],time_adaptive[:-50],w_range[:-50]
+       
+        #print(res_adaptive)
+        Smoothing(res_adaptive,w_range,time_adaptive)
+       
+        df = pd.DataFrame(list(zip(res_adaptive,time_adaptive,w_range)),columns=['res_adaptive','time_adaptive','w'] )
         if lens_model=='powerlaw':
             add_info=lens_model+'_lens_dist_'+str(y)+'_p_'+str(p)
             
@@ -680,10 +722,15 @@ if __name__ == '__main__':
             
             add_info=lens_model+'_lens_dist_'+str(y)+'_a_'+str(a)+'_b_'+str(b) + '_p_'+str(p)   
         
+        elif lens_model=='point':
+            
+            add_info=lens_model+'_lens_dist_'+str(y)
+            
         else:
             add_info=lens_model+'_lens_dist_'+str(y)+'_a_'+str(a)+'_b_'+str(b)+'_c_'+str(c)
             
         path='../Results/'+lens_model
+        
         if not os.path.exists(path):
             os.makedirs(path)
                    

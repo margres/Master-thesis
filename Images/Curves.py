@@ -224,24 +224,24 @@ if __name__ == '__main__':
 
     
     kappa=0
-    gamma=0.3
-    lens_model='PointMass'
-    fact=[1.,0.5,1]
+    gamma=0
+    lens_model='PseudoSIS'
+    fact=[1,0.5,1]
     
     xL1=0
     xL2=0
     xL12=[xL1,xL2]
     
     xS1=0
-    xS2=0.2
+    xS2=0.5
     xS12=[xS1,xS2]
     
     a=1
-    b=0
+    b=0.5
     c=1
     p=1
     #PlotCurves(xS12,xL12,kappa,gamma,lens_model, [a,b,c,p])
-    
+    fact=[a,b,c,p]
     if True:
     
         '''
@@ -272,12 +272,12 @@ if __name__ == '__main__':
             	xcau[i] = tmp[:,0]
             	ycau[i] = tmp[:,1]
                 
-        plt.plot(xcr,ycr,'.',color = 'blue')
-        plt.plot(xcau,ycau,'.',color = 'red')
+        plt.plot(xcr,ycr,'.',color = 'blue', label='critical')
+        plt.plot(xcau,ycau,'.',color = 'red', label='caustic')
         
         plt.scatter(xL1, xL2, marker='x',color='r', label='lens')
         plt.scatter(xS1, xS2, marker='*',color='orange', label='source')
-    
+        plt.legend()
     
     
    
