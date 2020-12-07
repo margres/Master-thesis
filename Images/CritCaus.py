@@ -7,7 +7,7 @@ Created on Tue Oct 20 12:33:09 2020
 
 Functions to plot critical curves and caustics
 """
-import scipy.optimize as op
+#import scipy.optimize as op
 import numpy as np 
 import matplotlib.pyplot as plt
 
@@ -28,17 +28,16 @@ def SIScore(x12,kappa,gamma,fact, caustics=False):
     
     a=fact[0]
     b=fact[1]
-    c=fact[2]
     
 
     x1=x12[0]
     x2=x12[1]
     
     #first derivative
-
-    dx12dx22 = np.sqrt((x1**2.+x2**2.)/c**2 + b**2)
-    dpsi1 = a*x1/dx12dx22/c**2
-    dpsi2 = a*x2/dx12dx22/c**2
+    dx12dx22 = np.sqrt(x1**2.+x2**2.)
+    dx12dx22b2 = np.sqrt(np.sqrt(x1**2.+x2**2.)+ b**2)
+    dpsi1 = a*x1/(2*dx12dx22*dx12dx22b2)
+    dpsi2 = a*x2/(2*dx12dx22*dx12dx22b2)
     
     if caustics==True:
         
@@ -52,14 +51,14 @@ def SIScore(x12,kappa,gamma,fact, caustics=False):
     
     #second derivatives 
     
-    dx12pdx22_32 = ((x1**2.+ x2**2.)/c**2+b**2)**(3/2)
+    dx12pdx22_32 = (x1**2.+ x2**2.+b**2)**(3/2)
     # d^2psi/dx1^2
-    dpsid11 = a*(x2**2+b**2*c**2)/dx12pdx22_32/c**4
+    dpsid11 = (b**2+x2**2)/dx12pdx22_32
     # d^2psi/dx2^2
-    dpsid22 = a*(x1**2+b**2*c**2)/dx12pdx22_32/c**4
+    dpsid22 = (b**2+x1**2)/dx12pdx22_32
     # d^2psi/dx1dx2
-    dpsid12 = -a*(x1*x2)/dx12pdx22_32/c**4
-
+    dpsid12 = -x1*x2/dx12pdx22_32
+    
     detA = DistMatrix(dpsid11,dpsid22,dpsid12, kappa,gamma)
     
     return detA
@@ -125,10 +124,10 @@ def softenedpowerlaw(x12,kappa, gamma, fact,caustics=False):
         
     #second derivatives 
     
-    ppart=(b**2+ (x1**2+x2**2)/c**2)    
-    dpsid11=a*p*ppart**(p/2 - 1)/c**2 + 2*a*(p/2 - 1)*p*x1**2*ppart**(p/2 - 2)/c**4
-    dpsid22=a*p*ppart**(p/2 - 1)/c**2 + 2*a*(p/2 - 1)*p*x2**2*ppart**(p/2 - 2)/c**4
-    dpsid12=2*a*ppart**(p/2 - 2)*p*x1*x2*(p/2 - 1)/c**4
+    ppart=(b**2+ (x1**2+x2**2))    
+    dpsid11=a*p*ppart**(p/2. - 1.) + 2*a*(p/2. - 1.)*p*x1**2.*ppart**(p/2. - 2.)
+    dpsid22=a*p*ppart**(p/2. - 1.) + 2*a*(p/2. - 1.)*p*x2**2.*ppart**(p/2. - 2.)
+    dpsid12=2*a*ppart**(p/2. - 2.)*p*x1*x2*(p/2. - 1.)
     
     detA = DistMatrix(dpsid11,dpsid22,dpsid12, kappa,gamma)
     
@@ -145,22 +144,27 @@ def softenedpowerlawkappa(x12,kappa, gamma, fact,caustics=False):
 
     x1x22= x1**2+x2**2
     
+    #if  
     
     if p==0:
         dpsi1= (a**2*x1*np.log((b**2 + x1x22)/b**2))/x1x22
         dpsi2= (a**2*x2*np.log((b**2 +  x1x22)/b**2))/x1x22
         dpsid11= (2*a**2*x1**2)/(x1x22*(b**2 + x1x22)) - (a**2*(x1**2 - x2**2)*np.log(1 + x1x22/b**2))/x1x22**2
-        dpsid12= (2*a**2*x1*x2*(x1x22/(b**2 +x1x22) - np.log(1 + x1x22/b**2)))/x1x22**2
         dpsid22= (2*a**2*x2**2)/(x1x22*(b**2 + x1x22)) - (a**2*(-x1**2 + x2**2)*np.log(1 + x1x22/b**2))/x1x22**2
-        
+        dpsid12= (2*a**2*x1*x2*(x1x22/(b**2 +x1x22) - np.log(1 + x1x22/b**2)))/x1x22**2
     else:
-        dpsi1= (a**(2 - p)*x1*(-b**p + (b**2 + x1x22)**(p/2)))/(p*x1x22)
-        dpsi2= (a**(2 - p)*x2*(-b**p + (b**2 + x1x22)**(p/2)))/(p*x1x22)
-        dpsid11= (a**(2 - p)*b**p*(x1**2 - x2**2))/(p*x1x22**2) + (a**(2 - p)*x1x22**(p/2 - 2)* (-b**2*x1**2 + b**2*x2**2 + p*x1**4 + p*x1**2*x2**2 - x1**4 + x2**4)*(b**2/x1x22 + 1)**(p/2))/(p*(b**2 + x1x22))
-        dpsid22= (a**(2 - p)*b**p*(x2**2 - x1**2))/(p*x1x22**2) + (a**(2 - p)*x1x22**(p/2 - 2)* (b**2*x1**2 - b**2*x2**2 + p*x1**2*x2**2 + p*x2**4 + x1**4 - x2**4) *(b**2/x1x22 + 1)**(p/2))/(p*(b**2 + x1x22))
-        dpsid12= (x1*x2*a**(2 - p)*(((p - 2)*(x1x22) - 2*b**2)*(b**2 + x1x22)**(p/2) + 2*b**p*(b**2 + x1**2 + x2**2)))/(p*x1x22**2*(b**2 + x1x22))
+        
+        dpsi1= (x1*a**(2 - p)*((b**2 + x1x22)**(p/2) - b**p))/(p *x1x22)
+        dpsi2= (x2*a**(2 - p)*((b**2 + x1x22)**(p/2) - b**p))/(p *x1x22)
+        #dpsid11= (a**(2 - p)*b**p*(x1**2 - x2**2))/(p*x1x22**2) + (a**(2 - p)*x1x22**(p/2 - 2)* (-b**2*x1**2 + b**2*x2**2 + p*x1**4 + p*x1**2*x2**2 - x1**4 + x2**4)*(b**2/x1x22 + 1)**(p/2))/(p*(b**2 + x1x22))
+        dpsid11=(a**(2 - p) *((x1x22)**(p/2)*(b**2*(x2**2 - x1**2) + (p - 1)*x1**4 + p*x1**2*x2**2 + x2**4)*(b**2/(x1x22)+1)**(p/2) + b**p*(x1 - x2)*(x1 + x2)*(b**2 + x1**2 + x2**2)))/(p*(x1x22)**2*(b**2 + x1x22)) 
+        dpsid22=(a**(2 - p)*((x1x22)**(p/2)*(b**2*(x1 - x2)*(x1 + x2) + p*x1**2*x2**2 + (p-1)*x2**4+x1**4)*(b**2/(x1**2+x2**2)+1)**(p/2)-b**p*(x1-x2)*(x1+x2)*(b**2+x1x22)))/(p*x1x22**2*(b**2+x1**2+x2**2))
+        #dpsid22= (a**(2 - p)*b**p*(x2**2 - x1**2))/(p*x1x22**2) + (a**(2 - p)*x1x22**(p/2 - 2)* (b**2*x1**2 - b**2*x2**2 + p*x1**2*x2**2 + p*x2**4 + x1**4 - x2**4) *(b**2/x1x22 + 1)**(p/2))/(p*(b**2 + x1x22))
+        #dpsid12= (x1*x2*a**(2 - p)*(((p - 2)*(x1x22) - 2*b**2)*(b**2 + x1x22)**(p/2) + 2*b**p*(b**2 + x1**2 + x2**2)))/(p*x1x22**2*(b**2 + x1x22))
+        dpsid12=(x1*x2*a**(2-p)*(((p - 2)*x1x22 - 2*b**2)*(b**2 + x1x22)**(p/2) + 2 *b**p *(b**2 + x1x22)))/(p*x1x22**2*(b**2 + x1x22))
         
         
+     
     if caustics==True:
         #perturbation contribution
         x1_per = x1*(kappa+gamma)
@@ -170,7 +174,7 @@ def softenedpowerlawkappa(x12,kappa, gamma, fact,caustics=False):
     
   
     
-    detA = DistMatrix(dpsid11,dpsid22,dpsid12, kappa,gamma)
+    detA = DistMatrix(dpsid11, dpsid22, dpsid12, kappa,gamma)
     
     return detA
     
@@ -179,9 +183,10 @@ def LensEq(x12,kappa, gamma, fact, lens_model):
     
     x1 = x12[0] 
     x2 = x12[1]
+    E_r=1
     
     alpha=eval(lens_model)((x1,x2),kappa, gamma, fact, caustics=True)
-    beta=np.column_stack((x1,x2))-alpha
+    beta=np.column_stack((x1,x2))-E_r*alpha
     
     '''
     print(x[0][:10])
@@ -205,7 +210,10 @@ def PlotCurves(xS12,xL12,kappa,gamma,lens_model,fact):
     c=fact[2]
     p=fact[3]
     
-    xy_lin=np.linspace(-2,2,1000)
+    if lens_model=='softenedpowerlaw' and p>1.7:
+        xy_lin=np.linspace(-500,500,1000)
+    else:    
+        xy_lin=np.linspace(-10,10,1000)
     X,Y = np.meshgrid(xy_lin, xy_lin)
     
     crit_curv=eval(lens_model)((X,Y), kappa, gamma, fact)
@@ -219,7 +227,7 @@ def PlotCurves(xS12,xL12,kappa,gamma,lens_model,fact):
     
     print(np.shape(xyCrit_all))
     for i in range(np.shape(xyCrit_all)[0]):
-        
+        figLim=0
         #xyCrit = cp.collections[0].get_paths()[i] 
         xyCrit = xyCrit_all[i].vertices  
         xCrit=xyCrit[:,0] 
@@ -228,13 +236,20 @@ def PlotCurves(xS12,xL12,kappa,gamma,lens_model,fact):
     
         xyCaus=LensEq((xCrit,yCrit), kappa, gamma, fact, lens_model)
        
+        #print(xyCaus)
         if xyCaus[:,0].any() <1e5 and xyCaus[:,1].any() <1e5 :
             plt.scatter(0,0, s=15,c='k', marker='o')
         
         plt.plot(xyCaus[:,0],xyCaus[:,1],'k-',linewidth=0.7) 
         #plt.title('p='+str(p))
-        plt.title('b='+str(b)+' p='+str(p))
+        if lens_model!='point' and lens_model!='SIScore':
+            plt.title('b='+str(b)+' p='+str(p))
+        elif lens_model=='SIScore' : 
+            plt.title('b='+str(b))
     
+        tmp=np.max(xyCrit_all[i].vertices)
+        if tmp>figLim:
+            figLim=tmp
     
     plt.plot(np.nan,np.nan,'k--',label='critical curves',linewidth=0.7)
     plt.plot(np.nan,np.nan,'k-',label='caustics',linewidth=0.7) 
@@ -248,7 +263,8 @@ def PlotCurves(xS12,xL12,kappa,gamma,lens_model,fact):
         
     plt.scatter(xL1, xL2, marker='x',color='r', label='lens')
     plt.scatter(xS1, xS2, marker='*',color='orange', label='source')
-    
+    plt.xlim(-figLim-2, figLim+2)
+    plt.ylim(-figLim-2, figLim+2)
     plt.legend()
     
     y =round((xS1**2+xS2**2)**(0.5),2)
@@ -271,7 +287,9 @@ if __name__ == '__main__':
     
     kappa=0
     gamma=0
-    lens_model='softenedpowerlawkappa'
+    lens_model='softenedpowerlaw'
+    
+    models=['point','SIScore','softenedpowerlaw','softenedpowerlawkappa']
     
     xL1=0
     xL2=0
@@ -287,9 +305,10 @@ if __name__ == '__main__':
     xS12=[xS1,xS2]
     
     a=1
-    b=0
+    b=0.5
     c=1
-    p=1.5
+    p=1.6                                 
+
     fact= [a,b,c,p]
     
     #bLin=np.linspace(0,1.5,7)

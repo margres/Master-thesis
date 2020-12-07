@@ -13,7 +13,8 @@ import numpy as np
 import scipy.special as ss
 import pandas as pd
 from FindShift import FirstImage
-import mpmath 
+#import mpmath 
+import warnings
 
 def ChebyshevTFunc_simple_x(x, size):
     """
@@ -46,6 +47,8 @@ def ChebyshevTFunc_simple_x(x, size):
         #
         Tn1 = Tn2
         Tn2 = tmp
+        
+    #print(Tlist)
 
     return Tlist
 
@@ -89,7 +92,7 @@ def ChebyshevTFunc(xmin, xmax, size):
         #
         Tlistn1 = Tlistn2
         Tlistn2 = tmp
-
+    #print(np.vstack(Tlist).transpose())
     return xlist, np.vstack(Tlist).transpose()
 
 
@@ -167,8 +170,9 @@ def GpFunc(xlist, w, y, model_lens,fact):
     elif model_lens == 'softenedpowerlaw':
    
         #ppart=(b**2+xlist**2/(c**2*(xlist - 1)**2))**(p/2 - 1)
-        gpx = w *  (xlist*(1. - 1.*p*(b**2 + xlist**2/(-1 + xlist)**2)**((-2 + p)/2)))/(1 - xlist)**3
+        gpx = w *  (xlist*(1. - 1.*a*p*(b**2 + xlist**2/(-1 + xlist)**2)**((-2 + p)/2)))/(1 - xlist)**3
     
+
     elif model_lens == 'softenedpowerlawkappa':
              
         if p!=0:              
@@ -186,7 +190,7 @@ def GpFunc(xlist, w, y, model_lens,fact):
     if np.isnan(gpx).any():
         print(gpx)
         raise Exception('Unsupported value in the derivative')
-
+    #print(gpx)
     return gpx
 
 def WFunc(x, w, y, phim, model_lens,fact):
@@ -213,6 +217,11 @@ def WFunc(x, w, y, phim, model_lens,fact):
     j0v = ss.j0(w*y*x)
     j1v = ss.j1(w*y*x)
     
+    #print(j0v)
+    
+    #print(j1v)
+    
+    
     a,b,c,p =fact[0],fact[1],fact[2],fact[3]
     # model-dependant exponential factor
     if model_lens == 'SIS':
@@ -220,12 +229,16 @@ def WFunc(x, w, y, phim, model_lens,fact):
         
     elif model_lens== 'SIScore':
         
-        a,b,c=fact[0],fact[1],fact[2]
         pot=a*(x**2 + b**2)**(0.5)
   
     elif model_lens == 'softenedpowerlaw':
         
-        pot=a*(x**2+b**2)**(p/2) - a*b**p
+        if 0<p<2:
+        
+            pot=a*(x**2+b**2)**(p/2) - a*b**p
+        
+        else: 
+             Exception('Unsupported p value')
 
         
     elif model_lens == 'softenedpowerlawkappa':
@@ -239,7 +252,7 @@ def WFunc(x, w, y, phim, model_lens,fact):
             #eq 28
             pot=1/p**2 * a**(2-p) *x**p
                
-        elif p<4 and b!=0 and p!=0:
+        elif p<1 and b!=0 and p!=0:
             
             '''
             if p==1:
@@ -253,15 +266,16 @@ def WFunc(x, w, y, phim, model_lens,fact):
             t3= 1/(2*p) * a**(2-p)*b**p*(np.euler_gamma-ss.digamma(-p/2))            
             pot=t1 - t2 - t3
             
-        elif p==0 and b!=0:
-            ##check again this
-            pot=-1/2 * a**2* mpmath.fp.polylog(2,x**2/b**2)
-            #print('pot',mpmath.fp.polylog(2,x**2/b**2))
-            
+            '''     
+            elif p==0 and b!=0:
+                ##check again this
+                pot=-1/2 * a**2* mpmath.fp.polylog(2,x**2/b**2)
+                #print('pot',mpmath.fp.polylog(2,x**2/b**2))
+            '''    
         else:
-        #if (b==0 and p<0) or p>=4:
+        #if (b==0 and p<0) or p>=2 or p=0:
             #we can not have b=0 and p<0
-            raise Exception('Unsupported lens model')
+            raise Exception('Unsupported p value')
             
 
     elif model_lens == 'point':
@@ -273,6 +287,8 @@ def WFunc(x, w, y, phim, model_lens,fact):
     # cos + i*sin for complex exponential part
     cosv = np.cos(float(gx))
     sinv = np.sin(float(gx))
+    
+    #print(gx)
     
     if np.isnan(float(gx)).any():
         print(gx)
@@ -370,7 +386,7 @@ def LevinFunc(xmin, xmax, size, w, y, phim, model_lens, cosORsin,fact):
         clist = np.linalg.solve(Lmatrix, rhslist)
     except np.linalg.LinAlgError:
         #raise Exception("LinAlgError")
-        return 0
+        return  0
     # print('clist', clist)
 
     # collocation approximation
@@ -385,6 +401,8 @@ def LevinFunc(xmin, xmax, size, w, y, phim, model_lens, cosORsin,fact):
     
     # integral results
     I = np.dot(p_max, f_osci_max) - np.dot(p_min, f_osci_min)
+    #print('Imax',np.dot(p_max, f_osci_max) )
+    #print('Imin',np.dot(p_min, f_osci_min))
     
     
 
@@ -615,11 +633,17 @@ def Smoothing(amp,w,t):
     for k in range(len(w)-1):
         if abs(amp[k]-amp[k-1]) > 5. and  abs(amp[k]-amp[k+1])>5:
             flag.append(k)
-        
+    '''    
     for f in flag:
         del amp[f]  
         del w[f]
         del t[f]
+    '''
+    try:
+        foo = flag
+        warnings.warn("This integration may contain some scattered points. Not confident accuracy.")
+    except NameError:
+        pass 
         
     #return amp,w
 
@@ -644,33 +668,29 @@ if __name__ == '__main__':
     # # 2.7270784320701793 + 12.832498219682217*I (integral)
     # # -0.1593982590701816 (phase)
     
-    w_range=np.linspace(0.001,100,1050) #usually it is 100 and 1000
-    #w_range=np.logspace(-3,2,1000)
-    
+    w_range=np.round( np.linspace(0.001,100,1050),5 ) #usually it is 100 and 1000
+    #w_range= w_range[660:670]
     
     
     a=1 #amplitude parameter
-    b=0#[0,0.25,0.5,0.75,1,1.5]#0.5 #core
+    b=0.5 #[0,0.25,0.5,0.75,1,1.5]#core
     c=1 #flattening parameter
   
-    #pLin=[0.01, 0.25, 0.5, 0.75, 0.9] #np.linspace(0.5,2.5,5)
-    
-    pLin= [0.5,1,1.1,1.5]# np.linspace(0.5,2.5,5)
-    
-    #yLin= [0.3] #np.linspace(0,1.5,7)
-    #yLin= [ round(y,2) for y in yLin]
-   # yLin= [-1.0] 
-    #print(pLin)
-    
+ 
+    pLin=[1.8]
+   # yLin=np.linspace(0,1.5,7)
+   # bLin=[0.0,0.25,0.5,1.0,1.5]
 
-    lens_model='softenedpowerlawkappa'
+    lens_model='softenedpowerlaw'
     models=['SIS','SIScore','softenedpowerlaw','softenedpowerlawkappa']
     
     
     #PlotCurves((0,0),(0,y),0,0,lens_model,[a,b,c,p])
     
+    #yLin=np.linspace(0,1.5,7)
+    #yLin=np.append(0.1,yLin[1:])
     
-    for b in bLin:
+    for p in pLin:
         
         w_list=[]
         res_simple=[]
@@ -699,6 +719,7 @@ if __name__ == '__main__':
             res_adaptive.append(res)  
             time_adaptive.append(time.time()-start)
             
+            print(abs(res))
             #print('phase', cmath.phase(res))
            
             
@@ -708,7 +729,7 @@ if __name__ == '__main__':
         res_adaptive,time_adaptive,w_range=res_adaptive[:-50],time_adaptive[:-50],w_range[:-50]
        
         #print(res_adaptive)
-        Smoothing(res_adaptive,w_range,time_adaptive)
+        #Smoothing(res_adaptive,w_range,time_adaptive)
        
         df = pd.DataFrame(list(zip(res_adaptive,time_adaptive,w_range)),columns=['res_adaptive','time_adaptive','w'] )
         if lens_model=='powerlaw':

@@ -395,7 +395,7 @@ if __name__ == '__main__':
     print('start running...')
     start = time.time()
     
-    
+    '''
     tau_list, Ftd, Ft_list, muI, tauI = FtHistFunc([xL1, xL2], lens_model, kappa, gamma, tlim, dt)
     # print(good_nodes)
     
@@ -405,16 +405,15 @@ if __name__ == '__main__':
     np.save('tauI.npy', tauI)
     np.save('Ftd.npy', Ftd)
     np.save('Ft_list.npy', Ft_list)
-    print('finished in', time.time()-start)
-    
-    
+    print('finished in', time.time()-start)   
     '''
+    
     muI = np.load('muI.npy')
     tauI = np.load('tauI.npy')
     tau_list= np.load('tau_list.npy')
     Ftd = np.load('Ftd.npy')
     Ft_list= np.load('Ft_list.npy')
-    '''
+    
 
 ################ Plot F tilde #############################################
     
@@ -469,7 +468,7 @@ if __name__ == '__main__':
   
     window = signal.cosine(2*len(t_new),40)    #create the window
     Ft_wind=Ft_new*window[int(window.size/2.):] #apply it
-    plt.plot(t_wind,window[int(window.size/2.):])
+    plt.plot(t_new,window[int(window.size/2.):])
     plt.title('Window')
     plt.show()
     
@@ -492,7 +491,7 @@ if __name__ == '__main__':
     plt.plot(w, np.abs(F_diff)**2, '.',label='F diffraction')
 
     plt.plot(w, np.abs(F_clas), label='F semi-classical')
-    plt.plot(w, np.abs(F_clas + F_diff), label='F full')
+    #plt.plot(w, np.abs(F_clas + F_diff), label='F full')
     plt.xlabel('frequency')
     plt.ylabel('|F|^2 amplification factor')
     plt.title('Magnification factor')

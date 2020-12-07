@@ -43,7 +43,7 @@ if __name__ == '__main__':
             Famp=[float(abs(complex(i))) for i in F]
             Fphase=[float(cmath.phase(complex(i))) for i in F]
             
-            df = pd.DataFrame(list(zip(Famp,Fphase)),columns=['Famp','Fphase'] )
+            df = pd.DataFrame(list(zip(Famp,Fphase,w)),columns=['Famp','Fphase','w'] )
             
             add_info='pointmass_lens_dist_'+str(y)
             df.to_csv('./Analytic_'+add_info+'.txt', sep='\t')

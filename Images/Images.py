@@ -372,7 +372,6 @@ if __name__ == '__main__':
     # lens
     #lens_model = 'point'
     lens_model= 'point'
-    xL1 = 0.1
     xL2 = 0.3
 
     # external shear
