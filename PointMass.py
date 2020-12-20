@@ -30,20 +30,20 @@ def Pointmass(w,y):
 if __name__ == '__main__':
     
     #y : distance from the lens 
-    y_range=[0.1, 0.3,1.0,3.0]
+    y_range=[np.sqrt(2*0.1**2)]
 
     for y in y_range:
-        w_range=np.linspace(0.001,100,5000)
+        w_range=np.linspace(0.001,100,2000)
         F=[]
-        
+        print(str(y))
         for w in w_range:
-            print(str(y))
+            #print(str(y))
             F = Pointmass(w,y)
             
             Famp=[float(abs(complex(i))) for i in F]
             Fphase=[float(cmath.phase(complex(i))) for i in F]
             
-            df = pd.DataFrame(list(zip(Famp,Fphase,w)),columns=['Famp','Fphase','w'] )
+            df = pd.DataFrame(list(zip(Famp,Fphase,w_range)),columns=['Famp','Fphase','w'] )
             
             add_info='pointmass_lens_dist_'+str(y)
             df.to_csv('./Analytic_'+add_info+'.txt', sep='\t')

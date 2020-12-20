@@ -33,11 +33,12 @@ def SIScore(x12,kappa,gamma,fact, caustics=False):
     x1=x12[0]
     x2=x12[1]
     
+    #psi= a*sqrt(x1**2+x2**2+b**2)
+    
     #first derivative
-    dx12dx22 = np.sqrt(x1**2.+x2**2.)
-    dx12dx22b2 = np.sqrt(np.sqrt(x1**2.+x2**2.)+ b**2)
-    dpsi1 = a*x1/(2*dx12dx22*dx12dx22b2)
-    dpsi2 = a*x2/(2*dx12dx22*dx12dx22b2)
+    dx12dx22 = np.sqrt(x1**2.+x2**2.+b**2.)
+    dpsi1 = a*x1/(dx12dx22)
+    dpsi2 = a*x2/(dx12dx22)
     
     if caustics==True:
         
@@ -238,14 +239,14 @@ def PlotCurves(xS12,xL12,kappa,gamma,lens_model,fact):
        
         #print(xyCaus)
         if xyCaus[:,0].any() <1e5 and xyCaus[:,1].any() <1e5 :
-            plt.scatter(0,0, s=15,c='k', marker='o')
+            plt.scatter(0,0, s=15, c='k', marker='o')
         
         plt.plot(xyCaus[:,0],xyCaus[:,1],'k-',linewidth=0.7) 
         #plt.title('p='+str(p))
         if lens_model!='point' and lens_model!='SIScore':
-            plt.title('b='+str(b)+' p='+str(p))
+            plt.title(str(lens_model)+' - b='+str(b)+' p='+str(p))
         elif lens_model=='SIScore' : 
-            plt.title('b='+str(b))
+            plt.title(str(lens_model)+' - b='+str(b))
     
         tmp=np.max(xyCrit_all[i].vertices)
         if tmp>figLim:
@@ -262,12 +263,20 @@ def PlotCurves(xS12,xL12,kappa,gamma,lens_model,fact):
         xL2=0
         
     plt.scatter(xL1, xL2, marker='x',color='r', label='lens')
-    plt.scatter(xS1, xS2, marker='*',color='orange', label='source')
-    plt.xlim(-figLim-2, figLim+2)
-    plt.ylim(-figLim-2, figLim+2)
+    try:
+        for x1,x2 in zip(xS1,xS2):
+            plt.scatter(x1, x2, marker='*', label='source')
+    except:
+        plt.scatter(xS1, xS2, marker='*',color='orange', label='source')
+        
+    plt.xlim(-figLim-1, figLim+1)
+    plt.ylim(-figLim-1, figLim+1)
     plt.legend()
     
-    y =round((xS1**2+xS2**2)**(0.5),2)
+    try:
+        y =round((xS1**2+xS2**2)**(0.5),2)
+    except:
+        y='various'
 
     if lens_model=='softenedpowerlaw':        
         add_info=lens_model+'_lens_dist_'+str(y)+'_a_'+str(a)+'_b_'+str(b)+'_c_'+str(c) + '_p_'+str(p)          
@@ -278,7 +287,7 @@ def PlotCurves(xS12,xL12,kappa,gamma,lens_model,fact):
     else:
         add_info=lens_model+'_lens_dist_'+str(y)+'_a_'+str(a)+'_b_'+str(b)+'_c_'+str(c)
             
-    plt.savefig('../Results/'+lens_model+'/CritCaus_'+add_info+'.png')
+    #plt.savefig('../Results/'+lens_model+'/CritCaus_'+add_info+'.png')
     #plt.show()
     
     
@@ -287,7 +296,7 @@ if __name__ == '__main__':
     
     kappa=0
     gamma=0
-    lens_model='softenedpowerlaw'
+    lens_model='SIScore'
     
     models=['point','SIScore','softenedpowerlaw','softenedpowerlawkappa']
     
@@ -300,14 +309,18 @@ if __name__ == '__main__':
     #xS2=np.append(0.1,xS2)
     #xS2=np.array([0.1 , 0.25, 0.5 , 0.75, 1.5 ])
     #xS1=np.zeros_like(xS2)
-    xS1=0
-    xS2=0.3
+
+    xS2=0.3#np.array([0.1,0.25,0.5,1,3]) 
+
+    #[0.25,0.5,0.75,1,3]
+   
+    xS1=np.zeros_like(xS2)
     xS12=[xS1,xS2]
     
     a=1
-    b=0.5
+    b=0
     c=1
-    p=1.6                                 
+    p=0.5                 
 
     fact= [a,b,c,p]
     

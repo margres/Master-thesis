@@ -271,28 +271,28 @@ def FtHistFunc(xL12, lens_model, kappa=0, gamma=0, tlim=6., dt=1e-2):
     Ft_list = Ft_list[:-10]
     
     #Before applying the window function I extend and higher times   
-    tau_list,Ft_list = fit_Func(tau_list,Ft_list,np.max(tauI)+0.1,'ftd_ext')
+    tau_list,Ft_list = fit_Func(tau_list,Ft_list,'ftd_ext')
     
-    
-    #plt.plot(tau_list,Ft_list)
-    #plt.xlim(0,2)
-    #plt.show()
+    #np.argmax(tauI)
+    mask_asymptote = Ft_list> 1   #Ft_list>1 
+    asymptote = np.ones(len(Ft_list[~mask_asymptote]))
+    Ft_list = Ft_list[mask_asymptote]  
+    Ft_list = np.concatenate([Ft_list,asymptote])
     
     plt.plot(tau_list, Ft_list,label='original - extended')
     
-    
+    '''
     #window function
     window = signal.cosine(2*len(tau_list),40)    #create the window
     Ft_list=Ft_list*window[int(window.size/2.):]
     
     plt.plot(tau_list, Ft_list,label='windowed')
     #plt.xlim(0,2)
-    plt.legend()
     plt.savefig('./plot/'+lens_model+'WindowFunction_'+additional_info+'.png',dpi=300)
+    '''
+    
     plt.show()
-    
-    
-    
+    plt.legend()
     
     # calculate signular part
     Ftc = FtSingularFunc(images_info, tau_list)
@@ -302,7 +302,8 @@ def FtHistFunc(xL12, lens_model, kappa=0, gamma=0, tlim=6., dt=1e-2):
 
     return tau_list, Ftd, Ft_list, muI,tauI
 
-def fit_Func(t_ori,Ft_orig, t_cut,funct, fit_type_ext='log', fit_type='han'):
+
+def fit_Func(t_ori,Ft_orig,funct, fit_type_ext='log', fit_type='han'):
     
     '''
     fitting of the smoothed curve
@@ -337,7 +338,7 @@ def fit_Func(t_ori,Ft_orig, t_cut,funct, fit_type_ext='log', fit_type='han'):
 
             w=np.hanning(window_len)
             Ft_new=np.convolve(w/w.sum(),s,mode='valid')
-            Ft_new=Ft_new[int((window_len/2-1)):-int((window_len/2))]
+            Ft_new=Ft_new[int((window_len/2-2)):-int((window_len/2))]
             
             return t_new, Ft_new
             
@@ -347,12 +348,11 @@ def fit_Func(t_ori,Ft_orig, t_cut,funct, fit_type_ext='log', fit_type='han'):
         '''
         Fitting of F_d(t) in  order to extrapolate values at higher times. 
         We can use a linear fitting or a log one.        
-        '''
-
-        #if fit_type_ext=='log':   
+        ''' 
         
-        t_max = 100
-        tail_mask = t_ori>t_cut
+        t_max = 50
+        t_cut = 0.6 
+        tail_mask = t_ori>t_cut        
         t_new = np.arange(t_cut,t_max , dt)
         log_t = np.log(t_ori[tail_mask])
         A = np.vstack([log_t, np.ones_like(log_t)]).T
@@ -363,39 +363,42 @@ def fit_Func(t_ori,Ft_orig, t_cut,funct, fit_type_ext='log', fit_type='han'):
         Ftd_final = np.concatenate([Ft_orig, Ft_new[t_new>(t_ori[-1]+dt/2)]])
 
         '''
-        elif fit_type_ext=='log_low':
-            
-            t_min = -100
-            tail_mask = t_ori<t_cut
-            t_new = np.arange(t_cut,t_max , dt)                
-            log_t = np.log(t_ori[tail_mask])
-            A = np.vstack([np.ones_like(log_t),log_t,]).T
-            m, c = np.linalg.lstsq(A, Ft_orig[tail_mask], rcond=None)[0]
-            log_t_new = np.log(t_new)
-            Ft_new = m*log_t_new+c     
-            t_final = np.concatenate([ t_new[t_new>(t_ori[-1]+dt/2),t_ori ]])
-            Ftd_final = np.concatenate([Ft_new[t_new>(t_ori[-1]+dt/2)], Ft_orig])
-        '''
-        
         if t_cut<2:
             #I want up to where Fd reaches zero
             limit=np.where(Ftd_final<0)[0][0]
             print(limit)
             Ftd_final=Ftd_final[:limit]
             t_final=t_final[:limit]
-            
-            
+        '''
+        
         if t_final.size==Ftd_final.size:
             return t_final, Ftd_final  
         else:
             raise Exception('x and y not the same size!')
         
-
-    
     else:
         raise Exception('Unsupported fitting type!')
             
+        
+def PutLabels (x_label, y_label, title):
+    #plt.style.use('ggplot')
+    plt.rcParams["figure.figsize"] = (5,5)
+    plt.title(title)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.legend(loc='lower right',prop={'size': 15})
 
+    
+    params = {'axes.labelsize': 16,
+              'axes.titlesize': 16,
+              'xtick.labelsize' : 16,
+              'ytick.labelsize' : 16,
+              'font.size':16,
+              'lines.markersize':6
+             }
+    plt.rcParams.update(params)
+        
+        
 if __name__ == '__main__':
 
     import matplotlib.pyplot as plt
@@ -422,11 +425,7 @@ if __name__ == '__main__':
     
     print('start running...')
     start = time.time()
-    
-    
-    
-    #tau_list, Ftd_orig, Ft_list, muI, tauI = FtHistFunc([xL1, xL2], lens_model, kappa, gamma, tlim, dt)
-    # print(good_nodes)
+    tau_list, Ftd_orig, Ft_list, muI, tauI = FtHistFunc([xL1, xL2], lens_model, kappa, gamma, tlim, dt)
     
     
     np.save('muI.npy', muI)
@@ -435,7 +434,6 @@ if __name__ == '__main__':
     np.save('Ftd.npy', Ftd_orig)
     np.save('Ft_list.npy', Ft_list)
     print('finished in', time.time()-start)
-    
     
     
     muI = np.load('muI.npy')
@@ -447,13 +445,10 @@ if __name__ == '__main__':
 
 ################ Plot F tilde #############################################
     
-    outfile = './plot/'+lens_model+'_Ft'+additional_info+'.png'
+    outfile = './plot/'+lens_model+'test_Ft'+additional_info+'.png'
+    PutLabels('time','F(t)','Lensed waveform for a delta function pulse')   
     plt.plot(tau_list, Ft_list)
-    plt.xlabel('time')
-    plt.ylabel('F tilde')
-    plt.title('Lensed waveform for a delta function pulse')
-    plt.savefig(outfile, dpi=300)
-    #Ftd_smooth=Hanning_smooth(t_smooth,Ftd_smooth)   
+    plt.savefig(outfile, dpi=300)   
     plt.show()
     plt.close()
     print('Plot saved to', outfile)
@@ -461,74 +456,51 @@ if __name__ == '__main__':
 
 ################ Plot F_d   ###############################################
     
-    outfile = './plot/'+lens_model+'_Ftd'+additional_info+'.png'
-    tau, Ftd=fit_Func(tau_list,Ftd_orig,np.max(tauI)+0.3,'ftd')    
-    plt.plot(tau_list, Ftd_orig, color='orange', label='original')
-    plt.plot(tau, Ftd, color='green', label='fitted')
-    plt.xlabel('time')
-    plt.ylabel('F_d tilde')
-    plt.title('Diffraction contribution')
+    outfile = './plot/'+lens_model+'test_Ftd'+additional_info+'.png'
+    PutLabels('time','F_d','Diffraction contribution')   
+    td_new, Ftd_new=fit_Func(tau_list,Ftd,'ftd')
+    plt.plot(tau_list, Ftd, color='orange', label='original')
+    plt.plot(td_new, Ftd_new, color='green', label='fitted')
     plt.legend()
     plt.savefig(outfile, dpi=300)
-    #plt.close()
+    #plt.xlim(0,1)
     plt.show()
-
-    print('Plot saved to', outfile)
-
-    '''
     
-################ Plot F_d extrapolated at high t   ########################
-    
-  
-
-    tau, Ftd=fit_Func(tau, Ftd,tau[-100],'ftd_ext')
-    plt.plot(tau, Ftd)
-    plt.xlabel('time')
-    plt.ylabel('F_d tilde')
-    plt.title('F_d tilde extrapolated at high t')
-    plt.legend()    
-    #plt.xlim(0,10)
-    plt.savefig('./plot/'+lens_model+'Ftd_extension'+additional_info+'.png',dpi=300)
-    plt.show()
-
-    '''    
 ################       Windowing               ##############################
-    
-  
+    '''
+    PutLabels('x','y','Window')  
     window = signal.cosine(2*len(tau),40)    #create the window
     plt.plot(tau,window[int(window.size/2.):])
-    plt.title('Window')
     plt.savefig('./plot/Window_function.png', dpi=300)
     plt.show()
     
-    plt.plot(tau, Ftd,label='windowed')
     
+    PutLabels('w','F(t)','Window')   
+    plt.plot(tau, Ftd,label='windowed')
     Ftd=Ftd*window[int(window.size/2.):] #apply window
     plt.plot(tau, Ftd,label='original')
-    #plt.xlim(0,2)
     plt.legend()
     plt.savefig('./plot/'+lens_model+'WindowFunction_'+additional_info+'.png',dpi=300)
     plt.show()
     
-# =============================================================================
-#     
-# =============================================================================
+    '''
+    
 ################ Plot magnification factor   ##############################    
     
-    w,F_diff= Fd_w(tau, Ftd,tau_list,Ftd_orig)    
+    w,F_diff= Fd_w(td_new, Ftd_new,tau_list,Ftd)    
     
     F_clas=np.zeros((4,len(w)), dtype="complex_")
     for i,(m,t) in enumerate(zip(muI,tauI)):
-        F_clas[i,:]=FT_clas(w,t,m, tau, Ftd)
+        F_clas[i,:]=FT_clas(w,t,m)
     F_clas=np.sum(F_clas,axis=0)
     
     
-    plt.plot(w, np.abs(F_diff)**2, '.',label='F diffraction')
+    plt.plot(w, abs(F_diff), '.',label='F diffraction')
 
     plt.plot(w, np.abs(F_clas), label='F semi-classical')
     plt.plot(w, np.abs(F_clas + F_diff), label='F full')
     plt.xlabel('frequency')
-    plt.ylabel('|F|^2 amplification factor')
+    plt.ylabel('|F|')
     plt.title('Magnification factor')
     
     if gamma==0 and lens_model=='point' and xL1==0.1 and xL2==0.1:
@@ -546,7 +518,7 @@ if __name__ == '__main__':
     
     
     plt.xscale('log') 
-    plt.legend()
+    #plt.legend()
     plt.savefig('./plot/'+lens_model+'magnification_factor_extension_1_'+additional_info+'.png',dpi=300)
     plt.show()
 

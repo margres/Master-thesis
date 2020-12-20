@@ -47,7 +47,7 @@ def FFT(xs,ys, add_zeros='False'):
         t_final=xs
         Ftd_final=ys
     '''
-    N=ys.size + 1000
+    N=ys.size #+1000
     # 4. FFT
     ## note: Ftd_final is real, so first half of the FFT series gives usable information
     ##      you can either remove the second half of ifft results, or use a dedicated function ihfft   
@@ -62,7 +62,7 @@ def FFT(xs,ys, add_zeros='False'):
     return omega[1:],Fw[1:]
 
 
-def FT_clas(freq,T,mu, xs, ys):
+def FT_clas(freq,T,mu):
     
     '''
     semi-calssical analytical contribution, eq. 34 and 39 -- Ulmer's paper 
@@ -88,7 +88,10 @@ def Fd_w(xs,ys,t_ori,Ft_ori):
     
     omega,Fw=FFT(xs,ys)  
     #print(omega.size,Fw.size)
-    Fw = Fw*omega/(2j*np.pi)-Ft_ori[0]*np.exp(1j*omega*t_ori[0])/2/np.pi
+    #Fw = Fw*omega/(2j*np.pi)-Ft_ori[0]*np.exp(1j*omega*t_ori[0])/2/np.pi
+    
+    Fw = Fw*omega/(2j*np.pi)#-Ft_ori[0]*np.exp(1j*omega*t_ori[0])//np.pi
+    
     #Fw = Fw*omega/(2j*np.pi)#-Ft_ori[0]*np.exp(1j*omega*t_ori[0])/2/np.pi
     
     return omega,Fw

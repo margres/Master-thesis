@@ -183,6 +183,15 @@ def GpFunc(xlist, w, y, model_lens,fact):
         else:          
             gpx= w*( xlist/(1-xlist)**3 + a**2*np.log(1 + xlist**2/(b**2*(1 - xlist)**2))/((xlist - 1)*xlist))
   
+    elif model_lens == 'nfw':
+        gpx=[]
+        for xx in xlist:
+            if xx<1:
+                gp=(-xx**2 + 4*(xx**2 - 2*xx + 1*np.log(xx/(2 - 2*xx)) + (4*(xx**2 - 2*xx + 1)*np.arctanh(np.sqrt((1-2*xx)/(xx - 1)**2)))/np.sqrt((1 - 2*xx)/(xx- 1)**2))/((xx - 1)**3*xx))
+            else:
+                gp=(4*(1 - xx)**2*np.log(xx/(2- 2*xx))-xx**2)/((xx - 1)**3*xx) + (4*xx*np.arcatnh(np.sqrt((2*xx-1)/(xx-1)**2)))/((xx- 1)*np.sqrt((2*xx - 1)/(xx-1)**2)*(xx**2-4*xx+2))
+            gpx.append(gp)
+        print('gpx',gpx)
     else:
         gpx=0
         raise Exception('Unsupported lens model')
@@ -280,7 +289,14 @@ def WFunc(x, w, y, phim, model_lens,fact):
 
     elif model_lens == 'point':
         pot=np.log(x+1e-6)
-    
+        
+    elif model_lens=='nfw':
+        #k=1
+        if x<1:
+            pot= 2*(np.log(x/2)**2-np.arctanh(np.sqrt(1-x**2))**2)
+        else:
+            pot= 2*(np.log(x/2)**2+np.arctanh(np.sqrt(-1+x**2))**2)
+            
     
     gx= w*(0.5*x**2. - pot + phim)
   
@@ -660,28 +676,28 @@ if __name__ == '__main__':
     
     yL1=0.1
     yL2=0.1
-    #y =round((yL1**2+yL2**2)**(0.5),2)
+    y =round((yL1**2+yL2**2)**(0.5),3)
     
-    y=0.3 #relative distance lens-source on the lens plane
+    #y=0.1 #relative distance lens-source on the lens plane
     
     # # results from Mathematica
     # # 2.7270784320701793 + 12.832498219682217*I (integral)
     # # -0.1593982590701816 (phase)
     
-    w_range=np.round( np.linspace(0.001,100,1050),5 ) #usually it is 100 and 1000
+    w_range=np.round( np.linspace(0.0001,100,1050),5 ) #usually it is 100 and 1000
     #w_range= w_range[660:670]
     
     
     a=1 #amplitude parameter
-    b=0.5 #[0,0.25,0.5,0.75,1,1.5]#core
+    b=0ù #[0,0.25,0.5,0.75,1,1.5]#core
     c=1 #flattening parameter
   
  
-    pLin=[1.8]
+    pLin=[1.6]
    # yLin=np.linspace(0,1.5,7)
    # bLin=[0.0,0.25,0.5,1.0,1.5]
 
-    lens_model='softenedpowerlaw'
+    lens_model='SIScore'
     models=['SIS','SIScore','softenedpowerlaw','softenedpowerlawkappa']
     
     

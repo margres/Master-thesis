@@ -366,6 +366,24 @@ def fit_Func(t_ori,Ft_orig,funct, fit_type_ext='log', fit_type='han'):
     
     else:
         raise Exception('Unsupported fitting type! using either lin or log!')
+        
+def PutLabels (x_label, y_label, title):
+    #plt.style.use('ggplot')
+    plt.rcParams["figure.figsize"] = (5,5)
+    plt.title(title)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.legend(loc='lower right',prop={'size': 15})
+
+    
+    params = {'axes.labelsize': 16,
+              'axes.titlesize': 16,
+              'xtick.labelsize' : 16,
+              'ytick.labelsize' : 16,
+              'font.size':16,
+              'lines.markersize':6
+             }
+    plt.rcParams.update(params)
             
 
 if __name__ == '__main__':
@@ -388,14 +406,14 @@ if __name__ == '__main__':
     tlim = 0.5
     dt = 1e-3
     
-    additional_info='_x_L1_'+str(xL1)+ '_x_L2_'+str(xL2)+'_kappa_'+str(kappa)+'_gamma_'+str(gamma)
+    add_info='_x_L1_'+str(xL1)+ '_x_L2_'+str(xL2)+'_kappa_'+str(kappa)+'_gamma_'+str(gamma)
     
  
     
     print('start running...')
     start = time.time()
-    
     '''
+    
     tau_list, Ftd, Ft_list, muI, tauI = FtHistFunc([xL1, xL2], lens_model, kappa, gamma, tlim, dt)
     # print(good_nodes)
     
@@ -408,6 +426,8 @@ if __name__ == '__main__':
     print('finished in', time.time()-start)   
     '''
     
+    plt.rcParams["figure.figsize"] = (5,5)
+    
     muI = np.load('muI.npy')
     tauI = np.load('tauI.npy')
     tau_list= np.load('tau_list.npy')
@@ -418,34 +438,32 @@ if __name__ == '__main__':
 ################ Plot F tilde #############################################
     
     outfile = './plot/'+lens_model+'test_Ft'+additional_info+'.png'
+    PutLabels('time','F(t)','Lensed waveform for a delta function pulse')   
     plt.plot(tau_list, Ft_list)
-    plt.xlabel('time')
-    plt.ylabel('F tilde')
-    plt.title('Lensed waveform for a delta function pulse')
-    plt.savefig(outfile, dpi=300)
-    #Ftd_smooth=Hanning_smooth(t_smooth,Ftd_smooth)   
+    plt.savefig(outfile, dpi=300)   
     plt.show()
     plt.close()
     print('Plot saved to', outfile)
 
+
+        
 ################ Plot F_d   ###############################################
     
-    outfile = './plot/'+lens_model+'test_Ftd'+additional_info+'.png'
-    t_smooth, Ftd_smooth=fit_Func(tau_list,Ftd,'ftd')
+    outfile = './plot/'+lens_model+'test_Ftd'+add_info+'.png'
+    PutLabels('time','F_d tilde','Diffraction contribution')  
+    
     plt.plot(tau_list, Ftd, color='orange', label='original')
-    plt.plot(t_smooth, Ftd_smooth, color='green', label='fitted')
-    plt.xlabel('time')
-    plt.ylabel('F_d tilde')
-    plt.title('Diffraction contribution')
+    tau_list, Ftd = fit_Func(tau_list,Ftd,'ftd')
+    plt.plot(tau_list, Ftd, color='green', label='fitted')
+
     plt.legend()
     plt.savefig(outfile, dpi=300)
-    #plt.close()
     plt.show()
 
     print('Plot saved to', outfile)
 
 
-
+    
 ################ Plot F_d extrapolated at high t   ########################
     
   
@@ -461,7 +479,7 @@ if __name__ == '__main__':
     
     np.save('t_new.npy', t_new)
     np.save('Ft_new.npy', Ft_new)
-
+    
     
 ################       Windowing               ##############################
 
@@ -488,12 +506,12 @@ if __name__ == '__main__':
     F_clas=np.sum(F_clas,axis=0)
     
     
-    plt.plot(w, np.abs(F_diff)**2, '.',label='F diffraction')
+    plt.plot(w, np.abs(F_diff), '.',label='F diffraction')
 
     plt.plot(w, np.abs(F_clas), label='F semi-classical')
-    #plt.plot(w, np.abs(F_clas + F_diff), label='F full')
+    plt.plot(w, np.abs(F_clas + F_diff), label='F tot')
     plt.xlabel('frequency')
-    plt.ylabel('|F|^2 amplification factor')
+    plt.ylabel('|F|')
     plt.title('Magnification factor')
     
     if gamma==0 and lens_model=='point' and xL1==0.1 and xL2==0.1:
@@ -503,7 +521,17 @@ if __name__ == '__main__':
         Fwa = np.loadtxt('./test/Fw_analytical.txt', dtype='cfloat')
         plt.plot(wa, np.abs(Fwa), label='analytical')
         
+        dfpoint=pd.read_csv('pointHistcount__x1_0.1_x2_0.1_kappa_0_gamma_0.txt', sep="\t")
+        amp=[float(abs(complex(i))) for i in dfpoint.Famp.values]
+        w=dfpoint.w.values
+        plt.plot(w,amp,label='direct FT')
+        #phase=dfpoint.Fphase.values
+        
     plt.xscale('log') 
+    plt.yscale('log')
+    plt.xlim(0,100)
+        
+    
     plt.legend()
     plt.savefig('./plot/'+lens_model+'magnification_factor_extension_1_x_L1'+additional_info+'.png',dpi=300)
     plt.show()

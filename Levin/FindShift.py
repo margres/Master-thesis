@@ -33,7 +33,7 @@ def FindCrit(y,lens_model,fact):
 
         try:
             foo = tmp
-            print(xt_res)
+            print('x image' ,xt_res)
             break
         except NameError:
             xt_res.append(0)
@@ -91,6 +91,21 @@ def softenedpowerlawkappa(x,y,fact):
     
     return tp
 
+
+def nfw(x,y,fact):
+    
+   # k=1
+
+    if x>1:
+        phip= 2*(2*np.log(x/2))/x - (2*x*np.arctanh(np.sqrt(x**2 - 1)))/((x**2 - 2)*np.sqrt(x**2 - 1))
+    else:
+        phip= 2*(2*np.arctanh(np.sqrt(1 - x**2)))/(x*np.sqrt(1 - x**2)) + (2*np.log(x/2))/x  
+    
+    tp= (x - y) - phip
+
+    return tp
+
+
 def TimeDelay(x,y,fact,lens_model):
     
     a,b,c,p=fact[0], fact[1], fact[2],fact[3]
@@ -125,7 +140,17 @@ def TimeDelay(x,y,fact,lens_model):
        # elif p==0 and b!=0:
        #     phi=-1/2 * a**2* mpmath.polylog(2,x**2./b**2.)
       
-            
+    elif lens_model == 'nfw':
+        #k=1
+        
+        if x>1:
+            #print('sqrt',np.sqrt(-1+x**2))
+            #print(np.arctanh(1))
+            phi= 2*(np.log(x/2)**2+(np.arctanh(np.sqrt(-1+x**2)))**2)
+            #print(phi)
+        else:
+            phi= 2*(np.log(x/2)**2-(np.arctanh(np.sqrt(1-x**2)))**2)
+               
     else:
         raise Exception("Unsupported lens model !")
  
@@ -147,16 +172,17 @@ def FirstImage(y,fact,lens_model):
     try: 
         #if there is more than one image
         for x in xlist:
-            tlist.append (TimeDelay(x,y,fact,lens_model))
-            #print(tlist)
-            t=np.min(tlist)
+            t=TimeDelay(x,y,fact,lens_model)
+            if np.isnan(t)==False:
+                print('t',t)
+                tlist.append (t)
+        t=np.min(tlist)
+        print('tlist',tlist)
     except:
         #only one image
         t=TimeDelay(x,y,fact,lens_model)
     print('phi_m:',t)   
     return t
-
-
 
 
 
@@ -168,7 +194,7 @@ if __name__ == '__main__':
     p=1.8
     fact=[a,b,c,p]
     y=0.3
-    lens_model='softenedpowerlaw'
+    lens_model='SIScore'
     
     
     t = FirstImage(y,fact,lens_model)

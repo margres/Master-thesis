@@ -367,12 +367,19 @@ def Images(xL12, lens_model, kappa=0, gamma=0, fact=[1,0,1],return_mu=True, retu
 if __name__ == '__main__':
 
     from CritCaus import PlotCurves
+    
+    '''
+    
+    Here the source is in the center of the coordinate system
+    
+    '''
 
     
     # lens
     #lens_model = 'point'
-    lens_model= 'point'
-    xL2 = 0.3
+    lens_model= 'SIS'
+    xL1 = 0.1
+    xL2 = 2
 
     # external shear
     kappa = 0
@@ -387,12 +394,13 @@ if __name__ == '__main__':
 
     x_range=xmax-xmin
     x_lin=np.linspace(xmin,xmax,n_steps)
-    y_lin=np.linspace(xmin,xmax,n_steps)
+  
 
-    X,Y = np.meshgrid(x_lin, y_lin) # grid of point
+    X,Y = np.meshgrid(x_lin, x_lin) # grid of point
     
-    fact=[1,0,1]
+    fact=[1,0.5,1]
     
+    #PlotCurves([xS1,xS2],[xL1,xL2],kappa,gamma,lens_model, fact)
     
     tau = TFunc([X,Y], [xL1, xL2], lens_model, kappa, gamma, fact)
   
