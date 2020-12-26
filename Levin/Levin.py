@@ -684,12 +684,15 @@ if __name__ == '__main__':
     # # 2.7270784320701793 + 12.832498219682217*I (integral)
     # # -0.1593982590701816 (phase)
     
-    w_range=np.round( np.linspace(0.0001,100,1050),5 ) #usually it is 100 and 1000
+    
+  
+    #w_range=np.round(np.logspace(0.0001,100,1050),5 ) #usually it is 100 and 1000
+    w_range=np.round(np.linspace(0.001,100,1050),5)
     #w_range= w_range[660:670]
     
     
     a=1 #amplitude parameter
-    b=0ù #[0,0.25,0.5,0.75,1,1.5]#core
+    b=0 #[0,0.25,0.5,0.75,1,1.5]#core
     c=1 #flattening parameter
   
  

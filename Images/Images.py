@@ -18,15 +18,6 @@ import scipy.optimize as op
 import matplotlib.pyplot as plt
 
 
-def to_cartesian(r,theta):
-    
-    '''
-    function to change the coordinates from polar to cartesian
-    '''   
-    x=r*np.cos(theta)
-    y=r*np.sin(theta)
-    return (x,y)
-
 
 
 def TFunc(x12, xL12, lens_model, kappa=0, gamma=0,fact=[1,0,1]):
@@ -61,9 +52,6 @@ def TFunc(x12, xL12, lens_model, kappa=0, gamma=0,fact=[1,0,1]):
         tau -= np.log(np.sqrt(dx1**2.+dx2**2.))
     elif lens_model== 'SIS':
         tau -= np.sqrt(dx1**2.+dx2**2.)
-    elif lens_model == 'SIScore':
-        a,b,c=fact[0],fact[1],fact[2]
-        tau -= a*np.sqrt((dx1**2.+dx2**2.)/c**2 + b**2)
     
     return tau
 
@@ -316,7 +304,6 @@ def Images(xL12, lens_model, kappa=0, gamma=0, fact=[1,0,1],return_mu=True, retu
         theta_t_res = []
     
         # +++++++++++++ solve the lens equation
-        #if gamma!=0 and kappa!=0:
         
         for i in range(len(node_theta_t)-1):
     
@@ -377,9 +364,9 @@ if __name__ == '__main__':
     
     # lens
     #lens_model = 'point'
-    lens_model= 'SIS'
+    lens_model= 'point'
     xL1 = 0.1
-    xL2 = 2
+    xL2 = 0.1
 
     # external shear
     kappa = 0
@@ -412,7 +399,7 @@ if __name__ == '__main__':
     print('time delay', tauI)
 
     #contour plot
-    fig = plt.figure(dpi=300)
+    fig = plt.figure(dpi=100)
     left, bottom, width, height = 0.1, 0.1, 0.8, 0.8
     ax = fig.add_axes([left, bottom, width, height]) 
     # image

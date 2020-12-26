@@ -295,13 +295,13 @@ def PlotCurves(xS12,xL12,kappa,gamma,lens_model,fact):
 if __name__ == '__main__':
     
     kappa=0
-    gamma=0
+    gamma=0.1
     lens_model='SIScore'
     
     models=['point','SIScore','softenedpowerlaw','softenedpowerlawkappa']
     
-    xL1=0
-    xL2=0
+    xL1=1
+    xL2=1.5
     xL12=[xL1,xL2]
     
     
@@ -310,19 +310,19 @@ if __name__ == '__main__':
     #xS2=np.array([0.1 , 0.25, 0.5 , 0.75, 1.5 ])
     #xS1=np.zeros_like(xS2)
 
-    xS2=0.3#np.array([0.1,0.25,0.5,1,3]) 
+    xS2=np.sqrt(0.1**2 + 0.1**2)  #np.array([0.1,0.25,0.5,1,3]) 
 
     #[0.25,0.5,0.75,1,3]
    
     xS1=np.zeros_like(xS2)
     xS12=[xS1,xS2]
     
-    a=1
-    b=0
-    c=1
-    p=0.5                 
+    a = 1
+    b = 0
+    c = 1
+    p = 0.5                 
 
-    fact= [a,b,c,p]
+    fact = [a,b,c,p]
     
     #bLin=np.linspace(0,1.5,7)
     #for b in bLin:

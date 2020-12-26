@@ -24,6 +24,7 @@ sys.path.insert(0,os.path.realpath('..'))
 from Images import TFunc, dTFunc, Images
 from Fouriertrans import Fd_w,FT_clas
 from scipy.interpolate import UnivariateSpline
+     
 
 
 class TreeClass(object):
@@ -264,23 +265,11 @@ def FtHistFunc(xL12, lens_model, kappa=0, gamma=0, tlim=6., dt=1e-2):
     Ft_list, bin_edges = np.histogram(Tree.good_nodes['tau'].values, N_bins, weights=Tree.good_nodes['weights'].values/dt)
     tau_list = (bin_edges[1:]+bin_edges[:-1])/2.
     
+    
     # avoid edge effects
     tau_list = tau_list[:-10]
     Ft_list = Ft_list[:-10]
-    
-    '''
-    tau_extension,Ft_extension, n_points=fit_Func(tau_list,Ft_list,'ft')
-    plt.plot(tau_extension,Ft_extension)
-    plt.xlim(0,2)
-    plt.show()
-    
-    index_extension=np.where(tau_extension>np.max(tau_list))[0][0]
-    tau_list_extended=np.append(tau_list,tau_extension[index_extension:])
-    Ft_list_extended=np.append(Ft_list,Ft_extension[index_extension:])
-    plt.plot(tau_list_extended, Ft_list_extended)
-    plt.xlim(0,2)
-    plt.show()
-    '''   
+
     # calculate signular part
     Ftc = FtSingularFunc(images_info, tau_list)
     plt.plot(tau_list,Ftc, label='ftc')
@@ -289,15 +278,17 @@ def FtHistFunc(xL12, lens_model, kappa=0, gamma=0, tlim=6., dt=1e-2):
     plt.show()
     # remove signular part
     Ftd = Ft_list - Ftc
+    tauI-= tImin
+    tshift= tImin
 
-    return tau_list, Ftd, Ft_list, muI,tauI
+    return tau_list, Ftd, Ft_list, muI,tauI,tshift
 
 def fit_Func(t_ori,Ft_orig,funct, tauI, fit_type_ext='log', fit_type='han'):
     
     '''
     fitting of the smoothed curve
     '''
-    dt = 1e-3
+    dt = np.diff(t_ori)[0]
       
     if funct=='ftd': 
         
@@ -339,28 +330,18 @@ def fit_Func(t_ori,Ft_orig,funct, tauI, fit_type_ext='log', fit_type='han'):
         We can use a linear fitting or a log one.        
         '''
         
-        t_max = 10
+        t_max = 150
         #begin_fit=np.where(t_ori>np.max(t_ori)-0.2)[0][0]
-        t_cut = np.max(tauI)-0.2
+        t_cut = np.max(t_ori)-0.2
         tail_mask = t_ori>t_cut
         t_new = np.arange(t_cut,t_max , dt)
-    
-        
-        if fit_type_ext=='lin':
-            
-            fitting_order=1
-            z = np.polyfit(t_ori[tail_mask], Ft_orig[tail_mask], fitting_order)
-            p = np.poly1d(z)
-            Ft_new=p(t_new)
-            
-        elif fit_type_ext=='log':
                              
-            log_t = np.log(t_ori[tail_mask])
-            A = np.vstack([log_t, np.ones_like(log_t)]).T
-            m, c = np.linalg.lstsq(A, Ft_orig[tail_mask], rcond=None)[0]
-            log_t_new = np.log(t_new)
-            Ft_new = m*log_t_new+c
-            
+        log_t = np.log(t_ori[tail_mask])
+        A = np.vstack([log_t, np.ones_like(log_t)]).T
+        m, c = np.linalg.lstsq(A, Ft_orig[tail_mask], rcond=None)[0]
+        log_t_new = np.log(t_new)
+        Ft_new = m*log_t_new+c
+  
         t_final = np.concatenate([t_ori, t_new[t_new>(t_ori[-1]+dt/2)]])
         Ftd_final = np.concatenate([Ft_orig, Ft_new[t_new>(t_ori[-1]+dt/2)]])
     
@@ -386,8 +367,14 @@ def PutLabels (x_label, y_label, title):
               'lines.markersize':6
              }
     plt.rcParams.update(params)
-            
-
+    
+def geom_optics(T,m,t):  
+    
+        if m>0:    
+            return np.pi*(m**0.5)
+        else:
+            return -abs(m)**(0.5)*np.log(abs(t-T))
+    
 if __name__ == '__main__':
 
     import matplotlib.pyplot as plt
@@ -397,13 +384,13 @@ if __name__ == '__main__':
 
     
     # lens
-    lens_model = 'SIS'
+    lens_model = 'point'
     xL1 = 0.1
     xL2 = 0.1
 
     # external shear
-    kappa = 0
-    gamma = 0
+    kappa = 0.1
+    gamma = 0.5
 
     # accuracy
     tlim = 0.5
@@ -411,21 +398,19 @@ if __name__ == '__main__':
     
     add_info='_x1_'+str(xL1)+ '_x2_'+str(xL2)+'_kappa_'+str(kappa)+'_gamma_'+str(gamma)
     
- 
-    '''
+    
     print('start running...')
     start = time.time()
-    tau_list, Ftd, Ft_list, muI, tauI = FtHistFunc([xL1, xL2], lens_model, kappa, gamma, tlim, dt)
-
+    tau_list, Ftd, Ft_list, muI, tauI, tshift = FtHistFunc([xL1, xL2], lens_model, kappa, gamma, tlim, dt)
+   
     
     np.save('muI.npy', muI)
     np.save('tau_list.npy', tau_list)
     np.save('tauI.npy', tauI)
     np.save('Ftd.npy', Ftd)
     np.save('Ft_list.npy', Ft_list)
+    np.save('tshift.npy', tshift)
     print('finished in', time.time()-start)   
-    '''
-    
     
     
     muI = np.load('muI.npy')
@@ -433,6 +418,7 @@ if __name__ == '__main__':
     tau_list= np.load('tau_list.npy')
     Ftd = np.load('Ftd.npy')
     Ft_list= np.load('Ft_list.npy')
+    tshift= np.load('tshift.npy')
     
     
     print (muI, tauI)
@@ -441,10 +427,16 @@ if __name__ == '__main__':
     PutLabels('time','F(t)','Lensed waveform for a delta function pulse')    
     outfile = './plot/'+lens_model+'test_Ft'+add_info+'.png'
     plt.plot(tau_list, abs(Ft_list))
+    for ta in tauI:
+        plt.axvline(ta)
+    #plt.axvline(abs(0.440727 - 0.00548925j))
+        
+    #x1≈0.877109 - 0.302312 i ∧ x2≈-0.722862 - 0.258824 i
+    #x1≈0.877109 + 0.302312 i ∧ x2≈-0.722862 + 0.258824 i
     plt.show()
     plt.close()
 
-    plt.savefig(outfile, dpi=300)
+    plt.savefig(outfile, dpi=100)
     print('Plot saved to', outfile)
 
 
@@ -459,64 +451,63 @@ if __name__ == '__main__':
     
     t_new, Ft_new=fit_Func(tau_list, Ft_list,'ftd_ext',tauI)
     plt.plot(t_new,Ft_new, label='log ext')
+
     
-    def Smoothing(amp,w):
-        
-        w=np.ndarray.tolist(w)
-        amp=np.ndarray.tolist(amp)
-        flag=[]
-        for k in range(len(w)-1):
-            if abs(amp[k]-amp[k-1]) > 1 and  abs(amp[k]-amp[k+1])>1 :
-                flag.append(k)
-                print(k)
-        i=0
-        for f in flag:
-            del amp[f-i]  
-            del w[f-i]
-            i+=1
-            
-        return np.array(amp),np.array(w)
-    
-    def geom_optics(t):      
-        
-        return -abs(muI[np.argmax(tauI)])**(0.5)*np.log(abs(t-np.max(tauI))) + np.pi*(muI[np.argmin(tauI)]**0.5)
-        
-    #plt.plot(t_new,asymptote, label='mu')
+    text=np.arange(tau_list[-1],150,np.diff(t_new)[-1])
+    asymptote=np.zeros_like(text)
+    for T,m in zip(tauI, muI):
+        asymptote+=geom_optics(T,m,text) 
+    #asymptote+=0.5*np.sqrt(xL1**2.+xL2**2)
+    plt.plot(text,asymptote, label='geom')
     
     '''
-    g=geom_optics(t_new)
-    ind=np.where(t_new>1)[0][0]
-    print('ind',ind)
-    change=np.argmin(Ft_new[ind:]-g[ind:])+ind
-    print(Ft_new[ind:]-g[ind:])
-    print('ch',change)
+    #i want to extend using the geometrical approximation, in order to do that i need to find
+    #where the 2 curves encounter. to find that i also need to extend with the logaritmic fit
+ 
+    text=np.arange(tau_list[-1],150,np.diff(t_new)[-1])
+    asymptote=np.zeros_like(text)
+    for T,m in zip(tauI, muI):
+        asymptote+=geom_optics(T,m,text) 
+    asymptote+=0.5*np.sqrt(xL1**2.+xL2**2)
+    #Ftmp_asy=geom_optics(t_new) 
+    #mask_asymptote=Ft_new<Ftmp_asy &
+    
+    
+    index_ext=np.where(t_new==tau_list[-1])[0][0]
+    idx = np.argwhere(np.diff(np.sign(asymptote - Ft_new[index_ext:]))).flatten()[0]
+    print(idx)
+    
+    plt.axvline(text[idx])
+    mask_asymptote=text>text[idx]
+    
+    Ft_new = np.concatenate([Ft_new[:(index_ext+idx)],asymptote[mask_asymptote]])
+    t_new= np.concatenate([t_new[:(index_ext+idx)],text[mask_asymptote]])
+    print(len(t_new),len(Ft_new))
     '''
     
+    hshift=Ft_list[-1]-asymptote[0]
+    plt.plot(text,asymptote+hshift, label='geom + shift')
+    asymptote+=hshift
     
-    text=np.arange(tau_list[-1],150,np.diff(t_new)[0])
-    asymptote=geom_optics(text) 
-    plt.plot(text,asymptote, label='mu')
-    #plt.legend() 
-    #plt.show()
-   
-    Ft_new = np.concatenate([Ft_list,asymptote])
-    t_new= np.concatenate([tau_list,text])
+    Ft_new = np.concatenate([Ft_list, asymptote[1:]])
+    t_new= np.concatenate([tau_list, text[1:]])
+    print(len(t_new),len(Ft_new))
     #plt.plot(t_new,Ft_new, label='final')
     
     
-    
-    mask_asymptote=Ft_new>0
-    asymptote=np.ones(len(Ft_new[~mask_asymptote]))*0
+    '''
+    mask_asymptote=Ft_new>1
+    asymptote=np.ones(len(Ft_new[~mask_asymptote]))
     Ft_new = np.concatenate([Ft_new[mask_asymptote],asymptote])
     #plt.plot(t_new,Ft_new, '-')
     #plt.show()
-    
+    '''
     
     plt.plot(t_new,Ft_new, label='final')
     #Ft_new,t_new=Smoothing(Ft_new,t_new)
     #plt.plot(t_new,Ft_new, '-')
     plt.legend()  
-    #plt.xlim(0,0.5)
+    plt.xlim(0,2.5)
     plt.show()
     plt.savefig(outfile,dpi=300)
     plt.close()
@@ -524,7 +515,7 @@ if __name__ == '__main__':
 
 ################       Windowing               ##############################
     
-    
+
     PutLabels('x','y','Window')   
     window = signal.cosine(2*len(t_new))    #create the window
     Ft_wind=Ft_new*window[int(window.size/2.):] #apply it
@@ -551,14 +542,18 @@ if __name__ == '__main__':
     PutLabels('w','|F(w)|',lens_model)   
     w,F_diff=Fd_w(t_new,Ft_new,tau_list,Ftd)    
     
+    
+    #phase shift due to the first image
+    #F_diff*=np.exp(-1j*tshift)
+    print(tshift)
     F_clas=np.zeros((4,len(w)), dtype="complex_")
     for i,(m,t) in enumerate(zip(muI,tauI)):
         F_clas[i,:]=FT_clas(w,t,m)
     F_clas=np.sum(F_clas,axis=0)
     
     print(np.abs(F_diff))
-    plt.plot(w[2:], np.abs(F_diff[2:]), '.',label='Hist counting')  
-    Fphase=[float(cmath.phase(complex(i))) for i in F_diff]
+    plt.plot(w, np.abs(F_diff), '.',label='Hist counting')  
+    Fphase=np.angle(F_diff) #[float(cmath.phase(complex(i))) for i in F_diff]
     
     df = pd.DataFrame(list(zip(F_diff,Fphase,w)),columns=['Famp','Fphase','w'] )
     df.to_csv('./'+lens_model+'Histcount_'+add_info+'.txt', sep='\t')
@@ -567,7 +562,7 @@ if __name__ == '__main__':
     #plt.plot(w, np.abs(F_clas + F_diff), label='F full')
 
     
-    if gamma==0 and lens_model=='point' and xL1==0.1 and xL2==0.1:
+    if lens_model=='point' and xL1==0.1 and xL2==0.1:
         #plot analytical
         
         #wa = np.arange(0.01, 200, 0.001)
@@ -575,7 +570,7 @@ if __name__ == '__main__':
         dfpoint=pd.read_csv('./Analytic_pointmass_lens_dist_0.14.txt', sep="\t")
         amp=dfpoint.Famp.values
         wa=dfpoint.w.values
-        plt.plot(wa, amp, label='analytical')
+        plt.plot(wa, amp, label='analytical - no shear')
         
         
     elif gamma==0 and lens_model=='SIS' and xL1==0.1 and xL2==0.1:
@@ -594,15 +589,17 @@ if __name__ == '__main__':
 
     PutLabels('w','phase',lens_model)   
     plt.plot(w,Fphase, '.',label='Hist counting')
-    if gamma==0 and lens_model=='point' and xL1==0.1 and xL2==0.1:
+    if lens_model=='point' and xL1==0.1 and xL2==0.1:
         phase=dfpoint.Fphase.values
-        plt.plot(wa, phase, label='analytical')
+        plt.plot(wa, phase, label='analytical - no shear')
         
     elif gamma==0 and lens_model=='SIS' and xL1==0.1 and xL2==0.1:
-        phase=[float(cmath.phase(complex(i))) for i in df_b0.res_adaptive.values]
-        plt.plot(wa, phase, label='analytical')
+        phase_b0=[float(-1j*np.log(complex(r)/abs(complex(r)))) for r in df_b0.res_adaptive.values]
+        plt.plot(wa, phase_b0, label='Levin')
         
     plt.xscale('log')
+    plt.axvline(0.1)
+    plt.xlim(0,100)
     plt.legend()
     plt.show()
     

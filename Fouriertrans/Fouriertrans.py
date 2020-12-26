@@ -57,9 +57,9 @@ def FFT(xs,ys, add_zeros='False'):
     ## multiply sampling interval to transfer sum to integral
     Fw *= dt
     freq = np.fft.rfftfreq(N,d=dt)
-    omega = freq*2.*np.pi
+    w = freq*2.*np.pi
     
-    return omega[1:],Fw[1:]
+    return w[1:],Fw[1:]
 
 
 def FT_clas(freq,T,mu):
@@ -77,7 +77,7 @@ def FT_clas(freq,T,mu):
         return -1*np.exp(1j*freq*T)*np.sqrt(mu)
     
 
-def Fd_w(xs,ys,t_ori,Ft_ori):
+def Fd_w(t,F,t_ori,Ft_ori):
     
     '''
     eq. 5.6  
@@ -86,15 +86,16 @@ def Fd_w(xs,ys,t_ori,Ft_ori):
     use xs and ys on the last equation.
     '''
     
-    omega,Fw=FFT(xs,ys)  
+    w,Fw=FFT(t,F)  
     #print(omega.size,Fw.size)
-    #Fw = Fw*omega/(2j*np.pi)-Ft_ori[0]*np.exp(1j*omega*t_ori[0])/2/np.pi
-    
-    Fw = Fw*omega/(2j*np.pi)#-Ft_ori[0]*np.exp(1j*omega*t_ori[0])//np.pi
+    Fw = Fw*w/(2j*np.pi)-F[0]*np.exp(2j*w*-0.0229)/2/np.pi+F[-1]*np.exp(2j*w*t[-1])/2/np.pi
+    print(+F[-1]*np.exp(2j*w*t[-1])/2/np.pi)
+    print(F[-1])
+    #Fw = Fw*w/(2j*np.pi)
     
     #Fw = Fw*omega/(2j*np.pi)#-Ft_ori[0]*np.exp(1j*omega*t_ori[0])/2/np.pi
     
-    return omega,Fw
+    return w,Fw
 
 
  

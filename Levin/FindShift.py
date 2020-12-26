@@ -193,8 +193,8 @@ if __name__ == '__main__':
     c=1
     p=1.8
     fact=[a,b,c,p]
-    y=0.3
-    lens_model='SIScore'
+    y=np.sqrt(2*0.1**2)
+    lens_model='point'
     
     
     t = FirstImage(y,fact,lens_model)

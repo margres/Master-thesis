@@ -34,10 +34,10 @@ if __name__ == '__main__':
 
     for y in y_range:
         w_range=np.linspace(0.001,100,2000)
-        F=[]
-        print(str(y))
+        #w_range=np.logspace(np.log(0.001),np.log(100),550)
+        #print(str(y))
         for w in w_range:
-            #print(str(y))
+            print(str(w))
             F = Pointmass(w,y)
             
             Famp=[float(abs(complex(i))) for i in F]
